@@ -1,7 +1,7 @@
 import React from 'react';
 import { ServiceOrder, OrderStatus, User, UserRole } from '../types';
 import { ProgressBar } from './ProgressBar';
-import { Trash2, CheckCircle, User as UserIcon, Calendar } from 'lucide-react';
+import { Trash2, CheckCircle, User as UserIcon, Calendar, Camera } from 'lucide-react';
 import { useAppContext } from './AppContext';
 
 interface ServiceOrderCardProps {
@@ -127,9 +127,17 @@ export const ServiceOrderCard: React.FC<ServiceOrderCardProps> = ({ order, onDra
 
       <div className="mt-3 flex items-center justify-between">
          <DeadlineIndicator date={order.expectedDeliveryDate} status={order.status} />
-        <div className="flex items-center">
-            <span className="text-xs font-medium text-granite-gray-light mr-2">{order.responsible}</span>
-            <UserIcon size={14} className="text-granite-gray-light" />
+        <div className="flex items-center space-x-4">
+            {order.imageCount && order.imageCount > 0 && (
+                <div className="flex items-center text-xs text-granite-gray-light" title={`${order.imageCount} imagens`}>
+                    <Camera size={14} className="mr-1.5" />
+                    <span>{order.imageCount}</span>
+                </div>
+            )}
+            <div className="flex items-center">
+                <span className="text-xs font-medium text-granite-gray-light mr-2">{order.responsible}</span>
+                <UserIcon size={14} className="text-granite-gray-light" />
+            </div>
         </div>
       </div>
     </div>
