@@ -98,7 +98,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
         date.setHours(12); // Avoid timezone issues by setting time to midday
         setFormData(prev => ({ ...prev, [name]: date.toISOString() }));
     } else {
-        setFormData(prev => ({ ...prev, [name]: value }));
+        setFormData(prev => ({ ...prev, [name]: type === 'number' ? parseInt(value, 10) : value }));
     }
   };
 
@@ -182,9 +182,13 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
                             <input type="text" name="responsible" id="responsible" value={formData.responsible || ''} onChange={handleInputChange} className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow" />
                         </div>
                          <div>
-                            <label htmlFor="progress" className="block text-sm font-medium text-granite-gray-light mb-1">Progresso (%)</label>
-                            <input type="number" name="progress" id="progress" value={formData.progress} onChange={handleInputChange} className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow" />
+                            <label htmlFor="imageCount" className="block text-sm font-medium text-granite-gray-light mb-1">Qtd. Imagens</label>
+                            <input type="number" name="imageCount" id="imageCount" value={formData.imageCount || ''} onChange={handleInputChange} className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow" />
                         </div>
+                    </div>
+                     <div>
+                        <label htmlFor="progress" className="block text-sm font-medium text-granite-gray-light mb-1">Progresso (%)</label>
+                        <input type="number" name="progress" id="progress" value={formData.progress} onChange={handleInputChange} className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                          <div>
