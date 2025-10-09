@@ -52,11 +52,11 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose }) => {
 
   return (
     <div 
-        className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+        className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 modal-backdrop-animation"
         onClick={onClose}
     >
       <div 
-        className="bg-coal-black rounded-xl p-8 w-full max-w-md border border-granite-gray/20 shadow-2xl"
+        className="bg-coal-black rounded-xl p-8 w-full max-w-md border border-granite-gray/20 shadow-2xl modal-content-animation"
         onClick={e => e.stopPropagation()}
       >
         <h2 className="text-2xl font-bold mb-6 font-display">Nova Ordem de Serviço</h2>
@@ -72,7 +72,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose }) => {
               required
             />
           </div>
-          <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-3 gap-4 mb-4">
             <div>
                 <label htmlFor="orderNumber" className="block text-sm font-medium text-granite-gray-light mb-1">Número da OS</label>
                 <input
@@ -82,6 +82,16 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose }) => {
                   onChange={(e) => setOrderNumber(e.target.value)}
                   className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
                   required
+                />
+            </div>
+             <div>
+                <label htmlFor="expectedDeliveryDate" className="block text-sm font-medium text-granite-gray-light mb-1">Previsão</label>
+                <input
+                  type="date"
+                  id="expectedDeliveryDate"
+                  value={expectedDeliveryDate}
+                  onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+                  className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
                 />
             </div>
             <div>
@@ -95,16 +105,6 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose }) => {
                   min="0"
                 />
             </div>
-          </div>
-          <div className="mb-4">
-            <label htmlFor="expectedDeliveryDate" className="block text-sm font-medium text-granite-gray-light mb-1">Previsão de Entrega</label>
-            <input
-              type="date"
-              id="expectedDeliveryDate"
-              value={expectedDeliveryDate}
-              onChange={(e) => setExpectedDeliveryDate(e.target.value)}
-              className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
-            />
           </div>
           <div className="mb-6">
             <label htmlFor="description" className="block text-sm font-medium text-granite-gray-light mb-1">Descrição</label>
