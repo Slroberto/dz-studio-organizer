@@ -8,7 +8,7 @@ import { GalleryPage } from './components/GalleryPage';
 import { GalleryDetailModal } from './components/GalleryDetailModal';
 import { NotificationContainer } from './components/NotificationContainer';
 import { DailySummaryModal } from './components/DailySummaryModal';
-import { SettingsPage } from './components/SettingsPage'; // Nova importação
+import { SettingsPage } from './components/SettingsPage';
 import { ServiceOrder, UserRole } from './types';
 import { LoginPage } from './components/LoginPage';
 import { ActivityLogPage } from './components/ActivityLogPage';
@@ -80,7 +80,7 @@ export default function App() {
           )}
           {currentPage === 'Relatórios' && <ReportsPage />}
           {currentPage === 'Log de Atividade' && <ActivityLogPage />}
-          {currentPage === 'Configurações' && <SettingsPage />} {/* Nova Rota */}
+          {currentPage === 'Configurações' && <SettingsPage />} {/* Rota de Configurações */}
         </main>
       </div>
       {isAddModalOpen && (
@@ -95,4 +95,18 @@ export default function App() {
       {gallerySelectedItem && (
         <GalleryDetailModal
           order={gallerySelectedItem}
-          onClose={() => setGallery
+          onClose={() => setGallerySelectedItem(null)} // <-- Linha corrigida (erro de sintaxe)
+        />
+      )}
+      <NotificationContainer onNotificationClick={handleNotificationClick} />
+      {/* Bloco de comentário do DailySummaryModal limpo para evitar erros de sintaxe */}
+      {/* {isSummaryModalOpen && dailySummaryData && (
+          <DailySummaryModal 
+              summary={dailySummaryData}
+              onClose={() => setIsSummaryModalOpen(false)}
+          />
+        )} 
+      */}
+    </div>
+  );
+}
