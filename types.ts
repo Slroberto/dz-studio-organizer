@@ -36,6 +36,7 @@ export interface ServiceOrder {
   expectedDeliveryDate?: string;
   lastStatusUpdate: string;
   creationDate: string;
+  imageCount?: number; // Added to track image quantity
   _rowIndex?: number; // Internal: to track row number in Google Sheets
 }
 
