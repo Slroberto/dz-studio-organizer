@@ -62,7 +62,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setNotifications(prev => [{ id, ...notification }, ...prev]);
   }, []);
 
-  const removeNotification = (id: string) => setNotifications(prev => prev.filter(n => n.id !== id));
+  const removeNotification = useCallback((id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  }, []);
   
   const addActivityLogEntry = useCallback(async (
     action: ActivityActionType,
@@ -96,10 +98,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (error) {
         console.error("Failed to fetch initial data:", error);
         setAuthError("Erro ao carregar dados. Verifique as permissões da planilha.");
+        addNotification({
+            message: "Erro ao carregar dados",
+            details: error instanceof Error ? error.message : "Verifique as permissões da planilha e a conexão.",
+            type: NotificationColorType.Alert
+        });
     } finally {
         setIsDataLoading(false);
     }
-  }, []);
+  }, [addNotification]);
 
   const handleTokenResponse = useCallback(async (tokenResponse: any) => {
     if (tokenResponse.error) {
@@ -109,7 +116,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return;
     }
 
-    if (window.gapi) {
+    if (window.gapi?.client) {
       window.gapi.client.setToken({ access_token: tokenResponse.access_token });
     }
     
@@ -142,6 +149,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (error) {
         console.error("Error fetching user profile:", error);
         setAuthError("Não foi possível obter informações do perfil.");
+    } finally {
+        setIsInitializing(false);
     }
   }, [fetchAllData]);
 
@@ -152,7 +161,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             await initGoogleClient(handleTokenResponse);
         } catch (error) {
             console.error("Initialization failed:", error);
-            setAuthError("Não foi possível conectar aos serviços do Google.");
+            const errorMessage = error instanceof Error ? error.message : "Não foi possível conectar aos serviços do Google.";
+            setAuthError(errorMessage);
         } finally {
              setIsInitializing(false);
         }
@@ -162,42 +172,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // --- Auth Functions ---
 
-  const login = () => {
+  const login = useCallback(() => {
     setAuthError(null);
-    setIsInitializing(true); // Show loading spinner during login
+    setIsInitializing(true);
     auth.signIn();
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     auth.signOut();
     setCurrentUser(null);
     setOrders([]);
     setActivityLog([]);
-  };
+  }, []);
   
   // --- UI and Filter Functions ---
   
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setSearchTerm('');
     setIsStalledFilterActive(false);
-  };
+  }, []);
   
   // --- CRUD Operations ---
   
-  const addOrder = async (orderData: Omit<ServiceOrder, 'id' | 'status' | 'progress' | 'lastStatusUpdate' | 'creationDate'>) => {
+  const addOrder = useCallback(async (orderData: Omit<ServiceOrder, 'id' | 'status' | 'progress' | 'lastStatusUpdate' | 'creationDate'>) => {
     if (!currentUser || currentUser.role === UserRole.Viewer) return;
     setIsDataLoading(true);
     
     try {
-        // 1. Create a folder in Google Drive
         const folderName = `${orderData.orderNumber}_${orderData.client}`;
         const folder = await drive.createFolder(folderName);
 
-        // 2. Prepare the full order object
         const now = new Date().toISOString();
         const newOrder: ServiceOrder = {
             ...orderData, 
-            id: orderData.orderNumber, // Use OS number as unique ID
+            id: orderData.orderNumber,
             status: OrderStatus.Waiting, 
             progress: 0,
             link: folder.webViewLink,
@@ -206,24 +214,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             creationDate: now,
         };
 
-        // 3. Add to Google Sheets
-        await sheets.addOrder(newOrder);
-
-        // 4. Update local state
+        const result = await sheets.addOrder(newOrder);
+        
+        // FIX: Extract rowIndex from the API response and add it to the new order object.
+        const updatedRange = result?.updates?.updatedRange; // e.g., 'OS_Data'!A123:L123
+        if (updatedRange) {
+            const match = updatedRange.match(/!A(\d+):/);
+            if (match && match[1]) {
+                newOrder._rowIndex = parseInt(match[1], 10);
+            }
+        }
+        
         setOrders(prev => [...prev, newOrder]);
         
         addNotification({ message: `Nova OS criada: ${newOrder.client}`, type: NotificationColorType.Success, orderId: newOrder.id });
-        addActivityLogEntry(ActivityActionType.Create, newOrder);
+        await addActivityLogEntry(ActivityActionType.Create, newOrder);
         
     } catch (error) {
         console.error("Failed to add order:", error);
-        addNotification({ message: 'Erro ao criar a OS', details: 'Verifique o console para mais informações.', type: NotificationColorType.Alert });
+        const details = error instanceof Error ? error.message : 'Verifique o console para mais informações.';
+        addNotification({ message: 'Erro ao criar a OS', details, type: NotificationColorType.Alert });
     } finally {
         setIsDataLoading(false);
     }
-  };
+  }, [currentUser, addNotification, addActivityLogEntry]);
 
-  const updateOrder = async (updatedOrderData: ServiceOrder) => {
+  const updateOrder = useCallback(async (updatedOrderData: ServiceOrder) => {
     if (!currentUser || currentUser.role === UserRole.Viewer) return;
     const originalOrder = orders.find(o => o.id === updatedOrderData.id);
     if (!originalOrder) return;
@@ -234,7 +250,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         lastStatusUpdate: hasStatusChanged ? new Date().toISOString() : updatedOrderData.lastStatusUpdate
     };
     
-    // Optimistic UI update
     setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
     setRecentlyUpdatedOrderId(updatedOrder.id);
     setTimeout(() => setRecentlyUpdatedOrderId(null), 2500);
@@ -245,21 +260,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (hasStatusChanged) {
             const details = `de '${originalOrder.status}' para '${updatedOrder.status}'`;
             const action = updatedOrder.status === OrderStatus.Delivered ? ActivityActionType.Complete : ActivityActionType.Move;
-            addActivityLogEntry(action, updatedOrder, details);
+            await addActivityLogEntry(action, updatedOrder, details);
         } else {
-            addActivityLogEntry(ActivityActionType.Update, updatedOrder);
+            await addActivityLogEntry(ActivityActionType.Update, updatedOrder);
         }
          addNotification({ message: `OS ${updatedOrder.orderNumber} atualizada.`, type: NotificationColorType.Success, orderId: updatedOrder.id });
     } catch (error) {
         console.error("Failed to update order:", error);
-        // Revert UI on failure
         setOrders(prev => prev.map(o => o.id === originalOrder.id ? originalOrder : o));
         addNotification({ message: 'Erro ao atualizar OS', type: NotificationColorType.Alert });
     }
-  };
+  }, [currentUser, orders, addNotification, addActivityLogEntry]);
 
-  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
-    if (!currentUser || currentUser.role === UserRole.Viewer) return;
+  const handleStatusChange = useCallback(async (orderId: string, newStatus: OrderStatus) => {
     const orderToUpdate = orders.find(o => o.id === orderId);
     if (!orderToUpdate || orderToUpdate.status === newStatus) return;
 
@@ -271,35 +284,38 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         status: newStatus,
         progress: progress,
         lastStatusUpdate: new Date().toISOString(),
-        ...(newStatus === OrderStatus.Delivered && { deliveryDate: new Date().toISOString() })
+        ...(newStatus === OrderStatus.Delivered && !orderToUpdate.deliveryDate && { deliveryDate: new Date().toISOString() })
     };
 
     await updateOrder(updatedOrder);
-  };
+  }, [orders, updateOrder]);
 
-  const deleteOrder = async (orderId: string) => {
+  const deleteOrder = useCallback(async (orderId: string) => {
     if (currentUser?.role !== UserRole.Admin) return;
     const orderToDelete = orders.find(o => o.id === orderId);
     if (!orderToDelete || !orderToDelete._rowIndex) return;
 
-    // Optimistic UI update
     const originalOrders = orders;
     setOrders(prev => prev.filter(o => o.id !== orderId));
     
     try {
         await sheets.deleteOrder(orderToDelete._rowIndex);
         addNotification({ message: `OS ${orderToDelete.orderNumber} excluída.`, type: NotificationColorType.Warning });
-        addActivityLogEntry(ActivityActionType.Delete, orderToDelete);
+        await addActivityLogEntry(ActivityActionType.Delete, orderToDelete);
     } catch (error) {
         console.error("Failed to delete order:", error);
-        setOrders(originalOrders); // Revert on failure
+        setOrders(originalOrders);
         addNotification({ message: 'Erro ao excluir a OS.', type: NotificationColorType.Alert });
     }
-  };
+  }, [currentUser, orders, addNotification, addActivityLogEntry]);
 
   // --- Memoized Values ---
 
-  const deliveredOrders = useMemo(() => orders.filter(o => o.status === OrderStatus.Delivered).sort((a,b) => new Date(b.deliveryDate!).getTime() - new Date(a.deliveryDate!).getTime()), [orders]);
+  const deliveredOrders = useMemo(() => orders.filter(o => o.status === OrderStatus.Delivered).sort((a,b) => {
+      const dateA = a.deliveryDate ? new Date(a.deliveryDate).getTime() : 0;
+      const dateB = b.deliveryDate ? new Date(b.deliveryDate).getTime() : 0;
+      return dateB - dateA;
+  }), [orders]);
   
   const filteredOrders = useMemo(() => {
      let tempOrders = [...orders];
