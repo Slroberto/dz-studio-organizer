@@ -206,8 +206,8 @@ export const ReportsPage: React.FC = () => {
             }
             setSelectedReport(data);
             setIsLoading(false);
+            // FIX: The `addNotification` function generates the ID internally. Do not pass an `id` property.
             addNotification({
-                id: `notif-${Date.now()}`,
                 message: `Relatório da semana ${data.period.start} - ${data.period.end} gerado.`,
                 type: NotificationColorType.Success
             });
