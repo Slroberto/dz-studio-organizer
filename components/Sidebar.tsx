@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Camera, GanttChartSquare, GalleryHorizontal, ChevronLeft, ChevronRight, History, FileText } from 'lucide-react';
+import { LayoutDashboard, Camera, GanttChartSquare, GalleryHorizontal, ChevronLeft, ChevronRight, History, FileText, Settings } from 'lucide-react';
 import { useAppContext } from './AppContext';
 
 const NavItem = ({ icon, text, active, collapsed, onClick }: { icon: React.ReactNode, text: string, active?: boolean, collapsed: boolean, onClick: () => void }) => (
@@ -27,7 +27,7 @@ export const Sidebar: React.FC = () => {
                     <NavItem icon={<GalleryHorizontal size={24} />} text="Galeria" collapsed={isCollapsed} active={currentPage === 'Galeria'} onClick={() => setCurrentPage('Galeria')} />
                     <NavItem icon={<FileText size={24} />} text="Relatórios" collapsed={isCollapsed} active={currentPage === 'Relatórios'} onClick={() => setCurrentPage('Relatórios')} />
                     <NavItem icon={<History size={24} />} text="Log de Atividade" collapsed={isCollapsed} active={currentPage === 'Log de Atividade'} onClick={() => setCurrentPage('Log de Atividade')} />
-                    {/* Settings page removed as user management is now via Google Accounts */}
+                    <NavItem icon={<Settings size={24} />} text="Configurações" collapsed={isCollapsed} active={currentPage === 'Configurações'} onClick={() => setCurrentPage('Configurações')} />
                 </ul>
             </nav>
 
