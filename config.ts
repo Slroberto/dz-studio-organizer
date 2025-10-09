@@ -1,18 +1,9 @@
-// FIX: Add type definitions for Vite environment variables to resolve TypeScript errors with `import.meta.env`.
-declare global {
-  interface ImportMeta {
-    readonly env: {
-      readonly VITE_GOOGLE_CLIENT_ID: string;
-      readonly VITE_GOOGLE_API_KEY: string;
-      readonly VITE_GOOGLE_SHEETS_ID: string;
-      readonly VITE_GOOGLE_DRIVE_FOLDER_ID: string;
-    }
-  }
-}
+// config.ts
+// CÓDIGO FINAL CORRETO: Sem declarações globais para evitar erro TS2717.
 
 // IMPORTANT: These values are loaded from environment variables.
 // You must configure these in your hosting environment (e.g., Vercel, Netlify).
-// For local development, create a .env.local file at the root of your project.
+// The prefix VITE_ is required for Vite/browser environment access.
 
 // The Client ID for your OAuth 2.0 Web application credentials from Google Cloud Console.
 // Example: VITE_GOOGLE_CLIENT_ID="12345..."
