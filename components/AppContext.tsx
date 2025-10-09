@@ -23,9 +23,11 @@ interface AppContextType {
   isInitializing: boolean;
   isDataLoading: boolean;
   authError: string | null;
+  initializationError: string | null;
   
   login: () => void;
   logout: () => void;
+  fetchAllData: () => Promise<void>;
   setCurrentPage: (page: string) => void;
   addOrder: (newOrderData: Omit<ServiceOrder, 'id' | 'status' | 'progress' | 'lastStatusUpdate' | 'creationDate'>) => Promise<void>;
   updateOrder: (updatedOrderData: ServiceOrder) => Promise<void>;
@@ -54,6 +56,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isInitializing, setIsInitializing] = useState(true);
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [initializationError, setInitializationError] = useState<string | null>(null);
+
   
   // --- Core Functions ---
 
@@ -88,6 +92,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const fetchAllData = useCallback(async () => {
     setIsDataLoading(true);
+    setInitializationError(null); // Clear previous errors on retry
     try {
         const [fetchedOrders, fetchedLogs] = await Promise.all([
             sheets.getOrders(),
@@ -97,10 +102,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setActivityLog(fetchedLogs.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
     } catch (error) {
         console.error("Failed to fetch initial data:", error);
-        setAuthError("Erro ao carregar dados. Verifique as permissões da planilha.");
+        const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
+        setInitializationError(errorMessage);
         addNotification({
-            message: "Erro ao carregar dados",
-            details: error instanceof Error ? error.message : "Verifique as permissões da planilha e a conexão.",
+            message: "Erro crítico ao carregar dados",
+            details: errorMessage,
             type: NotificationColorType.Alert
         });
     } finally {
@@ -174,6 +180,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const login = useCallback(() => {
     setAuthError(null);
+    setInitializationError(null);
     setIsInitializing(true);
     auth.signIn();
   }, []);
@@ -183,6 +190,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCurrentUser(null);
     setOrders([]);
     setActivityLog([]);
+    setInitializationError(null);
   }, []);
   
   // --- UI and Filter Functions ---
@@ -341,8 +349,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const value: AppContextType = {
     orders, currentUser, activityLog, notifications, currentPage, searchTerm,
     isStalledFilterActive, recentlyUpdatedOrderId, isSummaryLoading, filteredOrders,
-    deliveredOrders, isInitializing, isDataLoading, authError,
-    login, logout, setCurrentPage, addOrder, updateOrder, deleteOrder,
+    deliveredOrders, isInitializing, isDataLoading, authError, initializationError,
+    login, logout, fetchAllData, setCurrentPage, addOrder, updateOrder, deleteOrder,
     handleStatusChange, addNotification, removeNotification,
     setSearchTerm, setIsStalledFilterActive, clearFilters,
   };
