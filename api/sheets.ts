@@ -122,7 +122,7 @@ export const getOrders = async (): Promise<ServiceOrder[]> => {
 
     } catch (err: any) {
         console.error("Error fetching orders:", err.result.error.message);
-        throw new Error('Failed to fetch data from Google Sheets.');
+        throw new Error('Falha ao buscar dados do Google Sheets.');
     }
 };
 
@@ -140,13 +140,13 @@ export const addOrder = async (order: ServiceOrder): Promise<any> => {
         return response.result;
     } catch (err: any) {
         console.error("Error adding order:", err.result.error.message);
-        throw new Error('Failed to add order to Google Sheets.');
+        throw new Error('Falha ao adicionar ordem ao Google Sheets.');
     }
 };
 
 export const updateOrder = async (order: ServiceOrder): Promise<any> => {
     if (!order._rowIndex) {
-        throw new Error("Cannot update order without a row index.");
+        throw new Error("Não é possível atualizar a ordem sem um índice de linha.");
     }
     const row = mapOrderToRow(order);
     try {
@@ -161,7 +161,7 @@ export const updateOrder = async (order: ServiceOrder): Promise<any> => {
         return response.result;
     } catch (err: any) {
         console.error("Error updating order:", err.result.error.message);
-        throw new Error('Failed to update order in Google Sheets.');
+        throw new Error('Falha ao atualizar a ordem no Google Sheets.');
     }
 };
 
@@ -173,7 +173,7 @@ export const deleteOrder = async (rowIndex: number): Promise<any> => {
         // Find the sheetId (gid) for the named sheet
         const sheetMeta = await window.gapi.client.sheets.spreadsheets.get({ spreadsheetId: GOOGLE_SHEETS_ID });
         const sheet = sheetMeta.result.sheets.find((s: any) => s.properties.title === ORDERS_SHEET_NAME);
-        if (!sheet) throw new Error(`Sheet with name ${ORDERS_SHEET_NAME} not found.`);
+        if (!sheet) throw new Error(`Planilha com o nome ${ORDERS_SHEET_NAME} não encontrada.`);
         const sheetId = sheet.properties.sheetId;
 
         const response = await window.gapi.client.sheets.spreadsheets.batchUpdate({
@@ -194,7 +194,7 @@ export const deleteOrder = async (rowIndex: number): Promise<any> => {
         return response.result;
     } catch (err: any) {
         console.error("Error deleting order:", err.result.error.message);
-        throw new Error('Failed to delete order from Google Sheets.');
+        throw new Error('Falha ao excluir a ordem do Google Sheets.');
     }
 };
 
