@@ -14,7 +14,33 @@ import { ActivityLogPage } from './components/ActivityLogPage';
 import { DashboardPage } from './components/DashboardPage';
 import { ReportsPage } from './components/ReportsPage';
 import { useAppContext } from './components/AppContext';
-import { Loader } from 'lucide-react';
+import { Loader, AlertTriangle, RefreshCw, LogOut } from 'lucide-react';
+
+const InitializationErrorDisplay: React.FC<{ message: string; onRetry: () => void; onLogout: () => void; }> = ({ message, onRetry, onLogout }) => (
+  <div className="flex h-screen w-full items-center justify-center bg-coal-black text-white p-4">
+    <div className="w-full max-w-lg text-center p-8 bg-black/20 rounded-xl border border-red-500/30">
+        <AlertTriangle size={48} className="mx-auto text-red-500 mb-4" />
+        <h1 className="text-2xl font-bold font-display text-red-300 mb-2">Falha na Conexão com a Planilha</h1>
+        <p className="text-gray-400 mb-6">
+            Não foi possível carregar os dados. Isso geralmente ocorre se as variáveis de ambiente (como `VITE_GOOGLE_SHEETS_ID`) não estiverem configuradas corretamente no ambiente de produção (Vercel).
+        </p>
+        <div className="p-4 bg-black/30 rounded-md text-sm text-red-200 text-left font-mono mb-6">
+            <strong>Detalhes do Erro:</strong> {message}
+        </div>
+        <div className="flex justify-center gap-4">
+            <button onClick={onLogout} className="flex items-center px-6 py-2 rounded-lg text-sm font-bold text-gray-300 bg-granite-gray/20 hover:bg-granite-gray/40 transition-colors">
+                <LogOut size={16} className="mr-2" />
+                Sair
+            </button>
+            <button onClick={onRetry} className="flex items-center px-6 py-2 bg-cadmium-yellow rounded-lg text-sm font-bold text-coal-black hover:brightness-110 transition-transform transform active:scale-95">
+                <RefreshCw size={16} className="mr-2" />
+                Tentar Novamente
+            </button>
+        </div>
+    </div>
+  </div>
+);
+
 
 export default function App() {
   const {
@@ -22,6 +48,9 @@ export default function App() {
     orders,
     currentPage,
     isDataLoading,
+    initializationError,
+    fetchAllData,
+    logout
   } = useAppContext();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -43,6 +72,10 @@ export default function App() {
 
   if (!currentUser) {
     return <LoginPage />;
+  }
+
+  if (initializationError) {
+    return <InitializationErrorDisplay message={initializationError} onRetry={fetchAllData} onLogout={logout} />;
   }
   
   if (isDataLoading) {
