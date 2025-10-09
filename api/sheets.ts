@@ -105,9 +105,16 @@ export const getOrders = async (): Promise<ServiceOrder[]> => {
             range: `${ORDERS_SHEET_NAME}!A2:L`, // Assuming headers are in row 1
         });
         const rows = response.result.values || [];
+        
+        // **CRITICAL FIX**: Filter out empty rows before mapping.
+        // An empty row can be returned by the API if a user clears content
+        // without deleting the row itself. These can cause rendering errors.
+        // We consider a row valid only if it has a value in the first column (orderNumber).
+        const validRows = rows.filter(row => row && row[0] && row[0].trim() !== '');
+
         // The rowIndex passed to mapRowToOrder should be 1-based index of the data row itself
         // Since data starts at sheet row 2, the first data row has an index of 1 relative to the data block
-        return rows.map((row, index) => mapRowToOrder(row, index + 1));
+        return validRows.map((row, index) => mapRowToOrder(row, index + 1));
     } catch (err: any) {
         console.error("Error fetching orders:", err.result.error.message);
         throw new Error('Failed to fetch data from Google Sheets.');
