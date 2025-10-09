@@ -73,6 +73,7 @@ const mapRowToOrder = (row: any[], sheetRowIndex: number): ServiceOrder => {
         responsible: row[9] || '',
         link: row[10] || '',
         lastStatusUpdate: parseSheetDate(row[11]) || new Date().toISOString(),
+        imageCount: parseInt(row[12], 10) || 0,
         _rowIndex: sheetRowIndex // Save the original row index for updates (1-based)
     };
 };
@@ -94,6 +95,7 @@ const mapOrderToRow = (order: ServiceOrder): any[] => {
         order.responsible,
         order.link,
         order.lastStatusUpdate,
+        order.imageCount || 0,
     ];
 };
 
@@ -102,7 +104,7 @@ export const getOrders = async (): Promise<ServiceOrder[]> => {
     try {
         const response = await window.gapi.client.sheets.spreadsheets.values.get({
             spreadsheetId: GOOGLE_SHEETS_ID,
-            range: `${ORDERS_SHEET_NAME}!A2:L`, // Assuming headers are in row 1
+            range: `${ORDERS_SHEET_NAME}!A2:M`, // Assuming headers are in row 1
         });
         const rows = response.result.values || [];
         
@@ -129,7 +131,7 @@ export const addOrder = async (order: ServiceOrder): Promise<any> => {
     try {
         const response = await window.gapi.client.sheets.spreadsheets.values.append({
             spreadsheetId: GOOGLE_SHEETS_ID,
-            range: `${ORDERS_SHEET_NAME}!A:L`,
+            range: `${ORDERS_SHEET_NAME}!A:M`,
             valueInputOption: 'USER_ENTERED',
             resource: {
                 values: [row],
@@ -150,7 +152,7 @@ export const updateOrder = async (order: ServiceOrder): Promise<any> => {
     try {
         const response = await window.gapi.client.sheets.spreadsheets.values.update({
             spreadsheetId: GOOGLE_SHEETS_ID,
-            range: `${ORDERS_SHEET_NAME}!A${order._rowIndex}:L${order._rowIndex}`,
+            range: `${ORDERS_SHEET_NAME}!A${order._rowIndex}:M${order._rowIndex}`,
             valueInputOption: 'USER_ENTERED',
             resource: {
                 values: [row],
