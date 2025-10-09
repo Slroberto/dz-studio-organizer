@@ -158,7 +158,7 @@ export const ActivityLogPage: React.FC = () => {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full appearance-none bg-black/30 border border-granite-gray/50 rounded-lg pl-10 pr-4 py-2 text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
-                    aria-label="Search activity log"
+                    aria-label="Buscar no log de atividades"
                 />
             </div>
             <div className="flex items-center gap-4">
@@ -166,7 +166,7 @@ export const ActivityLogPage: React.FC = () => {
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
                     className="appearance-none bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
-                    aria-label="Sort activity log"
+                    aria-label="Ordenar log de atividades"
                  >
                     <option value="date-desc">Mais Recentes</option>
                     <option value="date-asc">Mais Antigos</option>
