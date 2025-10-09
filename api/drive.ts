@@ -19,7 +19,7 @@ export const createFolder = async (folderName: string): Promise<any> => {
         return response.result;
     } catch (err: any) {
         console.error("Error creating folder:", err.result.error.message);
-        throw new Error('Failed to create folder in Google Drive.');
+        throw new Error('Falha ao criar pasta no Google Drive.');
     }
 };
 
@@ -38,7 +38,7 @@ export const getFilesInFolder = async (folderId: string): Promise<any[]> => {
         return response.result.files || [];
     } catch (err: any) {
         console.error("Error listing files:", err.result.error.message);
-        throw new Error('Failed to list files from Google Drive.');
+        throw new Error('Falha ao listar arquivos do Google Drive.');
     }
 };
 
@@ -55,7 +55,7 @@ export const uploadFile = async (folderId: string, file: File, onProgress: (prog
     const token = window.gapi.client.getToken();
     if (!token) {
         console.error('Authentication token not found.');
-        throw new Error("User not authenticated. Please sign in again.");
+        throw new Error("Usuário não autenticado. Por favor, faça login novamente.");
     }
     const accessToken = token.access_token;
 
@@ -77,18 +77,18 @@ export const uploadFile = async (folderId: string, file: File, onProgress: (prog
         });
     } catch(networkError) {
         console.error("Network error initiating upload:", networkError);
-        throw new Error('Network error: Could not start upload session.');
+        throw new Error('Erro de rede: Não foi possível iniciar a sessão de upload.');
     }
 
     if (!initialResponse.ok) {
         const error = await initialResponse.json();
         console.error("Error initiating upload session:", error);
-        throw new Error('Failed to start resumable upload session.');
+        throw new Error('Falha ao iniciar a sessão de upload resumido.');
     }
 
     const location = initialResponse.headers.get('Location');
     if (!location) {
-        throw new Error('Could not get the resumable upload URL from Google Drive.');
+        throw new Error('Não foi possível obter a URL de upload resumido do Google Drive.');
     }
 
     // Step 2: Upload the file data using XMLHttpRequest for progress tracking
@@ -122,13 +122,13 @@ export const uploadFile = async (folderId: string, file: File, onProgress: (prog
                 }
             } else {
                 console.error('Upload failed. Status:', xhr.status, 'Response:', xhr.responseText);
-                reject(new Error(`Upload failed with status: ${xhr.status}`));
+                reject(new Error(`Falha no upload com o status: ${xhr.status}`));
             }
         };
 
         xhr.onerror = () => {
             console.error('Upload failed due to a network error.');
-            reject(new Error('Upload failed due to a network error.'));
+            reject(new Error('Falha no upload devido a um erro de rede.'));
         };
 
         // Send the file object directly. The browser handles the rest.
