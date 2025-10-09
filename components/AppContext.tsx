@@ -1,13 +1,20 @@
+// Em: src/components/AppContext.tsx (Versão Final e Integrada)
+
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode, useMemo } from 'react';
 import { ServiceOrder, User, AppNotification, ActivityLogEntry, OrderStatus, UserRole, ActivityActionType, NotificationColorType } from '../types';
 import { KANBAN_COLUMNS, USER_ROLES } from '../constants';
-import { generateSummary } from '../services/geminiService';
+// import { generateSummary } from '../services/geminiService'; // Comentado por enquanto
 import { initGoogleClient } from '../api/google';
 import * as auth from '../api/auth';
+// --- MUDANÇA IMPORTANTE: Importando nossa nova função ---
+import { fetchServiceOrders } from '../api/sheets'; 
+// O resto dos imports de 'sheets' e 'drive' podem ser necessários para outras funções (add, update, delete)
 import * as sheets from '../api/sheets';
 import * as drive from '../api/drive';
 
+
 // --- App Context Interfaces ---
+// (Nenhuma alteração necessária aqui, a interface original está perfeita)
 interface AppContextType {
   orders: ServiceOrder[];
   currentUser: User | null;
@@ -43,6 +50,8 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // --- Estados ---
+  // (Nenhuma alteração necessária nos estados)
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
@@ -59,8 +68,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [initializationError, setInitializationError] = useState<string | null>(null);
 
   
-  // --- Core Functions ---
-
+  // --- Funções Core ---
+  // (Nenhuma alteração necessária aqui)
   const addNotification = useCallback((notification: Omit<AppNotification, 'id'>) => {
     const id = `notif-${Date.now()}-${Math.random()}`;
     setNotifications(prev => [{ id, ...notification }, ...prev]);
@@ -90,18 +99,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // --- Data Fetching and Initialization ---
 
+  // ####################################################################
+  // ### AQUI ESTÁ A ALTERAÇÃO PRINCIPAL ###
+  // ####################################################################
   const fetchAllData = useCallback(async () => {
     setIsDataLoading(true);
-    setInitializationError(null); // Clear previous errors on retry
+    setInitializationError(null);
     try {
-        const [fetchedOrders, fetchedLogs] = await Promise.all([
-            sheets.getOrders(),
-            sheets.getActivityLog()
-        ]);
+        // Usando nossa nova função para buscar as ordens!
+        const fetchedOrders = await fetchServiceOrders(); 
+        
+        // A busca de logs pode continuar como estava, se a função existir em sheets.ts
+        const fetchedLogs = await sheets.getActivityLog(); 
+
         setOrders(fetchedOrders);
         setActivityLog(fetchedLogs.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+
     } catch (error) {
-        console.error("Failed to fetch initial data:", error);
+        console.error("Falha ao buscar dados iniciais:", error);
         const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido.";
         setInitializationError(errorMessage);
         addNotification({
@@ -113,6 +128,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setIsDataLoading(false);
     }
   }, [addNotification]);
+  // ####################################################################
+  // ### FIM DA ALTERAÇÃO PRINCIPAL ###
+  // ####################################################################
+
+
+  // --- O RESTO DO ARQUIVO CONTINUA IGUAL ---
+  // (A lógica de autenticação, CRUD, etc., não precisa ser alterada, pois ela já depende dos estados que estamos populando corretamente agora)
 
   const handleTokenResponse = useCallback(async (tokenResponse: any) => {
     if (tokenResponse.error) {
@@ -129,7 +151,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
         const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
             headers: { 'Authorization': `Bearer ${tokenResponse.access_token}` }
-        });
+        } );
         if (!userInfoResponse.ok) throw new Error('Failed to fetch user info');
         
         const profile = await userInfoResponse.json();
@@ -176,8 +198,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     initialize();
   }, [handleTokenResponse]);
 
-  // --- Auth Functions ---
-
   const login = useCallback(() => {
     setAuthError(null);
     setInitializationError(null);
@@ -193,14 +213,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setInitializationError(null);
   }, []);
   
-  // --- UI and Filter Functions ---
-  
   const clearFilters = useCallback(() => {
     setSearchTerm('');
     setIsStalledFilterActive(false);
   }, []);
-  
-  // --- CRUD Operations ---
   
   const addOrder = useCallback(async (orderData: Partial<ServiceOrder>) => {
     if (!currentUser || currentUser.role === UserRole.Viewer || !orderData.orderNumber || !orderData.client) return;
@@ -229,8 +245,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
         const result = await sheets.addOrder(newOrder);
         
-        // FIX: Extract rowIndex from the API response and add it to the new order object.
-        const updatedRange = result?.updates?.updatedRange; // e.g., 'OS_Data'!A123:L123
+        const updatedRange = result?.updates?.updatedRange;
         if (updatedRange) {
             const match = updatedRange.match(/!A(\d+):/);
             if (match && match[1]) {
@@ -321,8 +336,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         addNotification({ message: 'Erro ao excluir a OS.', type: NotificationColorType.Alert });
     }
   }, [currentUser, orders, addNotification, addActivityLogEntry]);
-
-  // --- Memoized Values ---
 
   const deliveredOrders = useMemo(() => orders.filter(o => o.status === OrderStatus.Delivered).sort((a,b) => {
       const dateA = a.deliveryDate ? new Date(a.deliveryDate).getTime() : 0;

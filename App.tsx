@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
-import { KanbanBoard } from './components/KanbanBoard';
+import KanbanBoard from './components/KanbanBoard';
 import { AddOrderModal } from './components/AddOrderModal';
 import { EditOrderModal } from './components/EditOrderModal';
 import { GalleryPage } from './components/GalleryPage';

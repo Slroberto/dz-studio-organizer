@@ -1,3 +1,5 @@
+// Em: src/components/ServiceOrderCard.tsx
+
 import React from 'react';
 import { ServiceOrder, OrderStatus, User, UserRole } from '../types';
 import { ProgressBar } from './ProgressBar';
@@ -6,8 +8,9 @@ import { useAppContext } from './AppContext';
 
 interface ServiceOrderCardProps {
   order: ServiceOrder;
-  onDragStart: (e: React.DragEvent<HTMLDivElement>, orderId: string) => void;
-  onSelect: (order: ServiceOrder) => void;
+  // Removi as props de drag-and-drop e onSelect por enquanto,
+  // pois o novo KanbanBoard não as está usando diretamente.
+  // Podemos reativá-las depois se precisarmos da funcionalidade de arrastar.
   isRecentlyUpdated?: boolean;
   isFreshlyUpdated?: boolean;
 }
@@ -27,11 +30,11 @@ const DeadlineIndicator = ({ date, status }: { date?: string, status: OrderStatu
     const diffTime = deadline.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    let colorClass = 'text-granite-gray'; // Default: Granite Gray (#69695A)
+    let colorClass = 'text-granite-gray';
     if (diffDays < 0) {
-      colorClass = 'text-red-500'; // Overdue: Red (#FF3B30)
+      colorClass = 'text-red-500';
     } else if (diffDays <= 1) {
-      colorClass = 'text-cadmium-yellow font-bold'; // 1 day left: Yellow (#DCFF00)
+      colorClass = 'text-cadmium-yellow font-bold';
     }
 
     const formattedDate = new Date(date).toLocaleDateString('pt-BR', {
@@ -52,14 +55,13 @@ const DeadlineIndicator = ({ date, status }: { date?: string, status: OrderStatu
   );
 };
 
-
-export const ServiceOrderCard: React.FC<ServiceOrderCardProps> = ({ order, onDragStart, onSelect, isRecentlyUpdated, isFreshlyUpdated }) => {
+// ### MUDANÇA 1: Removi o 'export' daqui ###
+const ServiceOrderCard: React.FC<ServiceOrderCardProps> = ({ order, isRecentlyUpdated, isFreshlyUpdated }) => {
   const { currentUser, deleteOrder } = useAppContext();
   
   const isInteractive = currentUser?.role !== UserRole.Viewer;
   const canDelete = currentUser?.role === UserRole.Admin;
 
-  // Interpolate color from Granite Gray (HSL: 60, 0%, 41%) to Cadmium Yellow (HSL: 65, 100%, 50%)
   const getBorderColor = (progress: number) => {
     const p = progress / 100;
     const hue = 60 + p * 5;
@@ -69,7 +71,7 @@ export const ServiceOrderCard: React.FC<ServiceOrderCardProps> = ({ order, onDra
   };
 
   const borderColorStyle = {
-    borderColor: getBorderColor(order.progress)
+    borderColor: getBorderColor(order.progress || 0) // Adicionado '|| 0' para segurança
   };
 
   const cardClasses = [
@@ -79,9 +81,7 @@ export const ServiceOrderCard: React.FC<ServiceOrderCardProps> = ({ order, onDra
 
   return (
     <div
-      draggable={isInteractive}
-      onDragStart={isInteractive ? (e) => onDragStart(e, order.id) : undefined}
-      onClick={isInteractive ? () => onSelect(order) : undefined}
+      // Removido draggable e onDragStart por enquanto
       className={cardClasses}
       style={borderColorStyle}
     >
@@ -106,8 +106,10 @@ export const ServiceOrderCard: React.FC<ServiceOrderCardProps> = ({ order, onDra
         {canDelete && (
           <button 
             onClick={(e) => {
-                e.stopPropagation(); // prevent opening modal when deleting
-                deleteOrder(order.id)
+                e.stopPropagation();
+                if (order.id) { // Verificação de segurança
+                  deleteOrder(order.id)
+                }
             }}
             disabled={!canDelete}
             className="text-granite-gray hover:text-red-500 disabled:text-gray-700 disabled:cursor-not-allowed transition-colors flex-shrink-0 ml-2"
@@ -123,7 +125,7 @@ export const ServiceOrderCard: React.FC<ServiceOrderCardProps> = ({ order, onDra
           <img src={order.thumbnailUrl} alt={order.description} className="rounded-md mb-4 aspect-video object-cover"/>
       )}
       
-      <ProgressBar progress={order.progress} />
+      <ProgressBar progress={order.progress || 0} /> {/* Adicionado '|| 0' para segurança */}
 
       <div className="mt-3 flex items-center justify-between">
          <DeadlineIndicator date={order.expectedDeliveryDate} status={order.status} />
@@ -143,3 +145,6 @@ export const ServiceOrderCard: React.FC<ServiceOrderCardProps> = ({ order, onDra
     </div>
   );
 };
+
+// ### MUDANÇA 2: Adicionei esta linha para criar a exportação padrão ###
+export default ServiceOrderCard;

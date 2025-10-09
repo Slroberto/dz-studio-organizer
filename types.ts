@@ -1,3 +1,5 @@
+// types.ts (Versão Final e Ajustada)
+
 export enum UserRole {
   Admin = 'Admin',
   Assistant = 'Assistant',
@@ -22,23 +24,27 @@ export enum OrderStatus {
   Delivered = 'Entregue',
 }
 
+// --- INTERFACE AJUSTADA ---
+// Esta é a versão refinada da sua interface original.
+// Garante que todos os campos da planilha sejam mapeados corretamente.
 export interface ServiceOrder {
-  id: string;
-  client: string;
-  orderNumber: string;
-  description: string;
-  status: OrderStatus;
-  progress: number;
-  thumbnailUrl: string;
-  link?: string;
-  responsible?: string;
-  deliveryDate?: string;
-  expectedDeliveryDate?: string;
-  lastStatusUpdate: string;
-  creationDate: string;
-  imageCount?: number; // Added to track image quantity
-  _rowIndex?: number; // Internal: to track row number in Google Sheets
+  id: string;                 // Identificador único para o React (usaremos o Número da OS)
+  orderNumber: string;        // Corresponde a "Número da OS"
+  client: string;             // Corresponde a "Cliente"
+  description: string;        // Corresponde a "Descrição"
+  status: OrderStatus;        // Corresponde a "Status", usando seu enum
+  lastStatusUpdate: string;   // Corresponde a "Última Atualização de Status"
+  creationDate: string;       // Corresponde a "Data de Criação"
+  progress?: number;          // Corresponde a "Progresso"
+  thumbnailUrl?: string;      // Corresponde a "URL da Miniatura"
+  link?: string;              // Corresponde a "Link do Drive"
+  responsible?: string;       // Corresponde a "Responsável"
+  deliveryDate?: string;      // Corresponde a "Data de Entrega"
+  expectedDeliveryDate?: string; // Corresponde a "Previsão de Entrega"
+  imageCount?: number;        // Corresponde a "Qtd imagens"
+  _rowIndex?: number;         // Interno: para rastrear a linha na planilha
 }
+// --- FIM DA INTERFACE AJUSTADA ---
 
 export interface KanbanColumn {
   title: string;
@@ -93,7 +99,6 @@ export interface WeeklyReportData {
   teamPerformance: { userName:string; deliveries: number; updates: number }[];
 }
 
-// FIX: Moved this interface from DailySummaryModal.tsx to break a circular dependency.
 export interface DailySummaryData {
   userName: string;
   inProgress: number;
