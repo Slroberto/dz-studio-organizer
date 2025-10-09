@@ -134,13 +134,11 @@ export const ReportsPage: React.FC = () => {
         const onTimePercentage = deliveredThisWeek.length > 0 ? ((onTimeDeliveries / deliveredThisWeek.length) * 100).toFixed(1) : '100.0';
 
         const totalDeliveryTime = deliveredThisWeek.reduce((acc, o) => {
-            // FIX: Changed date subtraction to use getTime() for explicit numeric conversion.
             const deliveryTime = new Date(o.deliveryDate!).getTime() - new Date(o.creationDate).getTime();
             return acc + deliveryTime;
         }, 0);
         const avgDeliveryDays = deliveredThisWeek.length > 0 ? (totalDeliveryTime / deliveredThisWeek.length / (1000 * 60 * 60 * 24)).toFixed(1) : '0.0';
 
-        // FIX: Switched to using a Map for counting clients to ensure strong type inference for the `topClients` array, resolving a potential 'unknown' type error.
         const clientCounts = createdThisWeek.reduce((acc, order) => {
             acc.set(order.client, (acc.get(order.client) || 0) + 1);
             return acc;
@@ -200,14 +198,12 @@ export const ReportsPage: React.FC = () => {
         setIsLoading(true);
         setTimeout(() => {
             const data = calculateReportData();
-            // Avoid duplicates
             if (!savedReports.some(r => r.id === data.id)) {
                  setSavedReports(prev => [data, ...prev].sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime()));
             }
             setSelectedReport(data);
             setIsLoading(false);
             addNotification({
-                id: `notif-${Date.now()}`,
                 message: `Relatório da semana ${data.period.start} - ${data.period.end} gerado.`,
                 type: NotificationColorType.Success
             });
@@ -218,18 +214,16 @@ export const ReportsPage: React.FC = () => {
         const { jsPDF } = jspdf;
         const doc = new jsPDF();
         
-        // Header
-        doc.setFillColor(35, 35, 35); // #232323
+        doc.setFillColor(35, 35, 35);
         doc.rect(0, 0, 210, 25, 'F');
         doc.setFontSize(16);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(220, 255, 0); // #DCFF00
+        doc.setTextColor(220, 255, 0);
         doc.text('DZ Studio Organizer', 14, 16);
         doc.setFontSize(10);
         doc.setTextColor(255, 255, 255);
         doc.text(`Relatório Semanal: ${reportData.period.start} - ${reportData.period.end}`, 14, 22);
 
-        // Body
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(12);
         (doc as any).autoTable({
@@ -266,7 +260,6 @@ export const ReportsPage: React.FC = () => {
             headStyles: { fillColor: [35, 35, 35] }
         });
 
-        // Footer
         const pageCount = doc.internal.getNumberOfPages();
         for(var i = 1; i <= pageCount; i++) {
             doc.setPage(i);
@@ -284,7 +277,7 @@ export const ReportsPage: React.FC = () => {
     const exportCSV = (reportData: WeeklyReportData) => {
         let csv = "Metrica,Valor\n";
         csv += `Período,"${reportData.period.start} - ${reportData.period.end}"\n`;
-        csv += `OS Criadas,${reportData.createdCount}\n...\n\n`; // Simplified for brevity
+        csv += `OS Criadas,${reportData.createdCount}\n...\n\n`;
         
         csv += "Top Clientes,OS\n";
         reportData.topClients.forEach(c => csv += `${c.name},${c.count}\n`);
