@@ -150,11 +150,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setIsInitializing(true);
         try {
             await initGoogleClient(handleTokenResponse);
-            setIsInitializing(false);
         } catch (error) {
             console.error("Initialization failed:", error);
             setAuthError("Não foi possível conectar aos serviços do Google.");
-            setIsInitializing(false);
+        } finally {
+             setIsInitializing(false);
         }
     };
     initialize();
@@ -164,6 +164,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const login = () => {
     setAuthError(null);
+    setIsInitializing(true); // Show loading spinner during login
     auth.signIn();
   };
 
