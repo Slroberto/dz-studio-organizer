@@ -8,7 +8,6 @@ import { GalleryPage } from './components/GalleryPage';
 import { GalleryDetailModal } from './components/GalleryDetailModal';
 import { NotificationContainer } from './components/NotificationContainer';
 import { DailySummaryModal } from './components/DailySummaryModal';
-import { SettingsPage } from './components/SettingsPage';
 import { ServiceOrder, UserRole } from './types';
 import { LoginPage } from './components/LoginPage';
 import { ActivityLogPage } from './components/ActivityLogPage';
@@ -22,7 +21,6 @@ export default function App() {
     currentUser,
     orders,
     currentPage,
-    isInitializing,
     isDataLoading,
   } = useAppContext();
 
@@ -43,21 +41,12 @@ export default function App() {
     }
   };
 
-  if (isInitializing) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-coal-black text-white">
-        <Loader className="animate-spin text-cadmium-yellow" size={48} />
-        <p className="ml-4 text-lg">Conectando aos serviços Google...</p>
-      </div>
-    );
-  }
-
   if (!currentUser) {
     return <LoginPage />;
   }
-    
+  
   if (isDataLoading) {
-      return (
+     return (
       <div className="flex h-screen w-full items-center justify-center bg-coal-black text-white">
         <Loader className="animate-spin text-cadmium-yellow" size={48} />
         <p className="ml-4 text-lg">Carregando dados do projeto...</p>
@@ -80,7 +69,6 @@ export default function App() {
           )}
           {currentPage === 'Relatórios' && <ReportsPage />}
           {currentPage === 'Log de Atividade' && <ActivityLogPage />}
-          {currentPage === 'Configurações' && <SettingsPage />} {/* Rota de Configurações */}
         </main>
       </div>
       {isAddModalOpen && (
@@ -95,18 +83,16 @@ export default function App() {
       {gallerySelectedItem && (
         <GalleryDetailModal
           order={gallerySelectedItem}
-          onClose={() => setGallerySelectedItem(null)} // <-- Linha corrigida (erro de sintaxe)
+          onClose={() => setGallerySelectedItem(null)}
         />
       )}
-      <NotificationContainer onNotificationClick={handleNotificationClick} />
-      {/* Bloco de comentário do DailySummaryModal limpo para evitar erros de sintaxe */}
+       <NotificationContainer onNotificationClick={handleNotificationClick} />
       {/* {isSummaryModalOpen && dailySummaryData && (
-          <DailySummaryModal 
-              summary={dailySummaryData}
-              onClose={() => setIsSummaryModalOpen(false)}
-          />
-        )} 
-      */}
+        <DailySummaryModal 
+            summary={dailySummaryData}
+            onClose={() => setIsSummaryModalOpen(false)}
+        />
+      )} */}
     </div>
   );
 }
