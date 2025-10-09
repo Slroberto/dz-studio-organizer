@@ -29,7 +29,7 @@ interface AppContextType {
   logout: () => void;
   fetchAllData: () => Promise<void>;
   setCurrentPage: (page: string) => void;
-  addOrder: (newOrderData: Omit<ServiceOrder, 'id' | 'status' | 'progress' | 'lastStatusUpdate' | 'creationDate'>) => Promise<void>;
+  addOrder: (newOrderData: Partial<ServiceOrder>) => Promise<void>;
   updateOrder: (updatedOrderData: ServiceOrder) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
   handleStatusChange: (orderId: string, newStatus: OrderStatus) => Promise<void>;
@@ -202,8 +202,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
   // --- CRUD Operations ---
   
-  const addOrder = useCallback(async (orderData: Omit<ServiceOrder, 'id' | 'status' | 'progress' | 'lastStatusUpdate' | 'creationDate'>) => {
-    if (!currentUser || currentUser.role === UserRole.Viewer) return;
+  const addOrder = useCallback(async (orderData: Partial<ServiceOrder>) => {
+    if (!currentUser || currentUser.role === UserRole.Viewer || !orderData.orderNumber || !orderData.client) return;
     setIsDataLoading(true);
     
     try {
@@ -214,6 +214,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const newOrder: ServiceOrder = {
             ...orderData, 
             id: orderData.orderNumber,
+            orderNumber: orderData.orderNumber,
+            client: orderData.client,
+            description: orderData.description || '',
+            thumbnailUrl: orderData.thumbnailUrl || '',
+            imageCount: orderData.imageCount || 0,
             status: OrderStatus.Waiting, 
             progress: 0,
             link: folder.webViewLink,
