@@ -40,6 +40,22 @@ const parseSheetDate = (dateInput: any): string | undefined => {
   return undefined; // Return undefined for unparseable dates
 };
 
+/**
+ * Validates and sanitizes the status string from the spreadsheet.
+ * If the status is not a valid OrderStatus enum value, it defaults to Waiting.
+ * @param statusString The status value from the sheet.
+ * @returns A valid OrderStatus.
+ */
+const getValidStatus = (statusString: any): OrderStatus => {
+  const validStatuses = Object.values(OrderStatus) as string[];
+  if (typeof statusString === 'string' && validStatuses.includes(statusString)) {
+    return statusString as OrderStatus;
+  }
+  // If status is empty, invalid, or a typo, default to Waiting.
+  // This prevents the app from crashing due to bad data.
+  return OrderStatus.Waiting;
+};
+
 
 // Helper to map a sheet row (array of strings) to a ServiceOrder object
 const mapRowToOrder = (row: any[], rowIndex: number): ServiceOrder => {
@@ -49,7 +65,7 @@ const mapRowToOrder = (row: any[], rowIndex: number): ServiceOrder => {
         client: row[1] || '',
         description: row[2] || '',
         thumbnailUrl: row[3] || 'https://picsum.photos/seed/default/400/300',
-        status: row[4] as OrderStatus || OrderStatus.Waiting,
+        status: getValidStatus(row[4]), // Sanitize status to prevent errors
         progress: parseInt(row[5], 10) || 0,
         creationDate: parseSheetDate(row[6]) || new Date().toISOString(),
         expectedDeliveryDate: parseSheetDate(row[7]),
