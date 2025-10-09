@@ -3,7 +3,7 @@ import { ServiceOrder, OrderStatus, NotificationColorType } from '../types';
 import { KANBAN_COLUMNS } from '../constants';
 import { useAppContext } from './AppContext';
 import { getFilesInFolder, uploadFile } from '../api/drive';
-import { Loader, UploadCloud, File, ExternalLink, Trash2, AlertTriangle } from 'lucide-react';
+import { Loader, UploadCloud, File, ExternalLink, Trash2, AlertTriangle, ImagePlus } from 'lucide-react';
 
 interface DriveFile {
     id: string;
@@ -115,6 +115,26 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
     }));
   };
 
+  const handleSetThumbnail = (file: DriveFile) => {
+    // Google Drive API thumbnailLinks can be size-specific. Replace the size parameter for a larger image.
+    const biggerThumbnail = file.thumbnailLink?.replace('=s220', '=w400');
+    if (biggerThumbnail) {
+        setFormData(prev => ({ ...prev, thumbnailUrl: biggerThumbnail }));
+        addNotification({
+            message: 'Miniatura atualizada.',
+            details: `Usando a imagem: ${file.name}`,
+            type: NotificationColorType.Success,
+        });
+    } else {
+         addNotification({
+            message: 'Não foi possível usar esta imagem.',
+            details: 'O arquivo pode não ter uma miniatura disponível.',
+            type: NotificationColorType.Warning,
+        });
+    }
+  };
+
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateOrder(formData);
@@ -179,6 +199,11 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
                     <div>
                         <label htmlFor="thumbnailUrl" className="block text-sm font-medium text-granite-gray-light mb-1">URL da Miniatura</label>
                         <input type="text" name="thumbnailUrl" id="thumbnailUrl" value={formData.thumbnailUrl} onChange={handleInputChange} className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow" />
+                        {formData.thumbnailUrl && (
+                            <div className="mt-2">
+                                <img src={formData.thumbnailUrl} alt="Pré-visualização da miniatura" className="rounded-md w-full aspect-video object-cover border border-granite-gray/50"/>
+                            </div>
+                        )}
                     </div>
                 </div>
                  <div className="flex-shrink-0 flex justify-end space-x-4 pt-6 mt-4 border-t border-granite-gray/20">
@@ -224,6 +249,16 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
                                             <li key={file.id} className="flex items-center p-2 bg-granite-gray/10 rounded">
                                                 <img src={file.iconLink} alt="file type" className="w-4 h-4 mr-3" />
                                                 <span className="flex-1 text-sm truncate">{file.name}</span>
+                                                {file.thumbnailLink && (
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => handleSetThumbnail(file)}
+                                                        className="p-1 text-granite-gray-light hover:text-cadmium-yellow"
+                                                        title="Definir como miniatura"
+                                                    >
+                                                        <ImagePlus size={14}/>
+                                                    </button>
+                                                )}
                                                 <a href={file.webViewLink} target="_blank" rel="noopener noreferrer" className="p-1 text-granite-gray-light hover:text-white"><ExternalLink size={14}/></a>
                                             </li>
                                         ))}
