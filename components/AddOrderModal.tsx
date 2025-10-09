@@ -13,6 +13,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose }) => {
   const [orderNumber, setOrderNumber] = useState('');
   const [description, setDescription] = useState('');
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
+  const [imageCount, setImageCount] = useState('');
 
 
   useEffect(() => {
@@ -31,11 +32,12 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose }) => {
     e.preventDefault();
     if (!client || !orderNumber || !description) return;
     
-    const orderData: Omit<ServiceOrder, 'id' | 'status' | 'progress' | 'lastStatusUpdate' | 'creationDate'> = {
+    const orderData: Omit<ServiceOrder, 'id' | 'status' | 'progress' | 'lastStatusUpdate' | 'creationDate'> & { imageCount?: number } = {
         client,
         orderNumber,
         description,
-        thumbnailUrl: `https://picsum.photos/seed/${client.replace(/\s+/g, '')}/400/300`
+        thumbnailUrl: `https://picsum.photos/seed/${client.replace(/\s+/g, '')}/400/300`,
+        imageCount: parseInt(imageCount, 10) || 0,
     };
 
     if (expectedDeliveryDate) {
@@ -82,16 +84,27 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose }) => {
                   required
                 />
             </div>
-             <div>
-                <label htmlFor="expectedDeliveryDate" className="block text-sm font-medium text-granite-gray-light mb-1">Previsão de Entrega</label>
+            <div>
+                <label htmlFor="imageCount" className="block text-sm font-medium text-granite-gray-light mb-1">Qtd. Imagens</label>
                 <input
-                  type="date"
-                  id="expectedDeliveryDate"
-                  value={expectedDeliveryDate}
-                  onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+                  type="number"
+                  id="imageCount"
+                  value={imageCount}
+                  onChange={(e) => setImageCount(e.target.value)}
                   className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
+                  min="0"
                 />
             </div>
+          </div>
+          <div className="mb-4">
+            <label htmlFor="expectedDeliveryDate" className="block text-sm font-medium text-granite-gray-light mb-1">Previsão de Entrega</label>
+            <input
+              type="date"
+              id="expectedDeliveryDate"
+              value={expectedDeliveryDate}
+              onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+              className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
+            />
           </div>
           <div className="mb-6">
             <label htmlFor="description" className="block text-sm font-medium text-granite-gray-light mb-1">Descrição</label>
