@@ -55,8 +55,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   
-  const [tokenClient, setTokenClient] = useState<any>(null);
-
   // --- Core Functions ---
 
   const addNotification = useCallback((notification: Omit<AppNotification, 'id'>) => {
@@ -86,7 +84,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // --- Data Fetching and Initialization ---
 
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback(async () => {
     setIsDataLoading(true);
     try {
         const [fetchedOrders, fetchedLogs] = await Promise.all([
@@ -101,7 +99,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } finally {
         setIsDataLoading(false);
     }
-  };
+  }, []);
 
   const handleTokenResponse = useCallback(async (tokenResponse: any) => {
     if (tokenResponse.error) {
@@ -111,12 +109,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         return;
     }
 
-    // FIX: Set the token for the GAPI client so all subsequent API calls are authenticated.
     if (window.gapi) {
       window.gapi.client.setToken({ access_token: tokenResponse.access_token });
     }
     
-    // Fetch user profile
     try {
         const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
             headers: { 'Authorization': `Bearer ${tokenResponse.access_token}` }
@@ -146,19 +142,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     } catch (error) {
         console.error("Error fetching user profile:", error);
         setAuthError("Não foi possível obter informações do perfil.");
-    } finally {
-        // Note: isInitializing is set after the initial script load, not here.
-        // This block runs after user interaction.
     }
-  }, []);
+  }, [fetchAllData]);
 
   useEffect(() => {
     const initialize = async () => {
         setIsInitializing(true);
         try {
             await initGoogleClient(handleTokenResponse);
-            // FIX: Set initializing to false after scripts are loaded and ready.
-            // This allows the user to click the "Login" button.
             setIsInitializing(false);
         } catch (error) {
             console.error("Initialization failed:", error);
