@@ -58,9 +58,9 @@ const getValidStatus = (statusString: any): OrderStatus => {
 
 
 // Helper to map a sheet row (array of strings) to a ServiceOrder object
-const mapRowToOrder = (row: any[], rowIndex: number): ServiceOrder => {
+const mapRowToOrder = (row: any[], sheetRowIndex: number): ServiceOrder => {
     return {
-        id: row[0] || `OS-TEMP-${rowIndex}`, // Use ID_OS as the primary ID
+        id: row[0] || `OS-TEMP-${sheetRowIndex}`, // Use ID_OS as the primary ID
         orderNumber: row[0] || '',
         client: row[1] || '',
         description: row[2] || '',
@@ -73,7 +73,7 @@ const mapRowToOrder = (row: any[], rowIndex: number): ServiceOrder => {
         responsible: row[9] || '',
         link: row[10] || '',
         lastStatusUpdate: parseSheetDate(row[11]) || new Date().toISOString(),
-        _rowIndex: rowIndex + 1 // Save the original row index for updates (1-based)
+        _rowIndex: sheetRowIndex // Save the original row index for updates (1-based)
     };
 };
 
@@ -106,15 +106,18 @@ export const getOrders = async (): Promise<ServiceOrder[]> => {
         });
         const rows = response.result.values || [];
         
-        // **CRITICAL FIX**: Filter out empty rows before mapping.
-        // An empty row can be returned by the API if a user clears content
-        // without deleting the row itself. These can cause rendering errors.
-        // We consider a row valid only if it has a value in the first column (orderNumber).
-        const validRows = rows.filter(row => row && row[0] && row[0].trim() !== '');
+        const mappedOrders: ServiceOrder[] = [];
+        rows.forEach((row, index) => {
+            // Check if the row is valid (has a truthy value in the first column)
+            if (row && row[0] && String(row[0]).trim() !== '') {
+                // The actual row number in the sheet is the 0-based index + 2 (because data starts at row 2)
+                const sheetRowIndex = index + 2;
+                mappedOrders.push(mapRowToOrder(row, sheetRowIndex));
+            }
+        });
+        
+        return mappedOrders;
 
-        // The rowIndex passed to mapRowToOrder should be 1-based index of the data row itself
-        // Since data starts at sheet row 2, the first data row has an index of 1 relative to the data block
-        return validRows.map((row, index) => mapRowToOrder(row, index + 1));
     } catch (err: any) {
         console.error("Error fetching orders:", err.result.error.message);
         throw new Error('Failed to fetch data from Google Sheets.');
