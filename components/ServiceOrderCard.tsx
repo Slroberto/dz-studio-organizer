@@ -111,7 +111,7 @@ export const ServiceOrderCard: React.FC<ServiceOrderCardProps> = ({ order, onDra
             }}
             disabled={!canDelete}
             className="text-granite-gray hover:text-red-500 disabled:text-gray-700 disabled:cursor-not-allowed transition-colors flex-shrink-0 ml-2"
-            aria-label="Delete Order"
+            aria-label="Excluir Ordem"
           >
             <Trash2 size={18} />
           </button>
