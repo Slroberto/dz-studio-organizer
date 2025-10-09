@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DZ Studio Organizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+      @keyframes fadeIn {
+        from { 
+          opacity: 0; 
+          transform: translateY(10px); 
+        }
+        to { 
+          opacity: 1; 
+          transform: translateY(0); 
+        }
+      }
+      .card-enter-animation {
+        animation: fadeIn 0.4s ease-out forwards;
+      }
+    
+      @keyframes saved-check-pop {
+        0% { transform: scale(0.5); opacity: 0; }
+        50% { transform: scale(1.2); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      .card-saved-check {
+        animation: saved-check-pop 0.3s ease-out forwards;
+      }
+
+      @keyframes pulse-indicator {
+        0%, 100% {
+          transform: scale(1);
+          opacity: 0.9;
+        }
+        50% {
+          transform: scale(1.4);
+          opacity: 0.6;
+        }
+      }
+      .pulse-indicator-animation {
+        animation: pulse-indicator 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+      }
+
+      @keyframes modal-backdrop-fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @keyframes modal-content-fade-in {
+        from { 
+          opacity: 0; 
+          transform: scale(0.95);
+        }
+        to { 
+          opacity: 1; 
+          transform: scale(1);
+        }
+      }
+      .modal-backdrop-animation {
+        animation: modal-backdrop-fade-in 0.2s ease-out forwards;
+      }
+      .modal-content-animation {
+        animation: modal-content-fade-in 0.3s ease-out forwards;
+      }
+
+      @keyframes slide-in-right {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      .animate-slide-in-right {
+        animation: slide-in-right 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
+      }
+
+      @keyframes timer-bar {
+        from { width: 100%; }
+        to { width: 0%; }
+      }
+      .animate-timer-bar {
+        animation: timer-bar 4s linear forwards;
+      }
+
+      /* Kanban Horizontal Scroll */
+      .kanban-container {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-behavior: smooth;
+        -ms-overflow-style: none; /* IE and Edge */
+        scrollbar-width: thin; /* Firefox */
+        scrollbar-color: #DCFF00 #1A1A1A; /* Firefox */
+      }
+
+      /* Webkit Scrollbar Styles */
+      .kanban-container::-webkit-scrollbar {
+        height: 8px;
+      }
+
+      .kanban-container::-webkit-scrollbar-track {
+        background: #1A1A1A;
+        border-radius: 4px;
+      }
+
+      .kanban-container::-webkit-scrollbar-thumb {
+        background-color: #DCFF00;
+        border-radius: 4px;
+      }
+      
+      .kanban-container::-webkit-scrollbar-thumb:hover {
+        background-color: #A8C200;
+      }
+    </style>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'coal-black': '#232323',
+              'cadmium-yellow': '#DCFF00',
+              'granite-gray': '#69695A',
+              'granite-gray-light': '#8A8A7D',
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              display: ['Montserrat', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.544.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-coal-black">
+    <div id="root"></div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- Google API & Identity Scripts -->
+    <script async defer src="https://apis.google.com/js/api.js"></script>
+    <script async defer src="https://accounts.google.com/gsi/client"></script>
+
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
