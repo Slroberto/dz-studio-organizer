@@ -13,8 +13,8 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose }) => {
   const [salvando, setSalvando] = useState(false);
 
   const handleSalvar = async () => {
-    if (!cliente || !descricao) {
-      alert("Preencha todos os campos.");
+    if (!cliente.trim() || !descricao.trim()) {
+      alert("Preencha cliente e descrição.");
       return;
     }
 
@@ -26,7 +26,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose }) => {
         status,
         criadoEm: serverTimestamp(),
       });
-      alert("Nova OS adicionada com sucesso!");
+      alert("OS criada com sucesso!");
       onClose();
     } catch (error) {
       console.error("Erro ao adicionar OS:", error);
