@@ -21,46 +21,42 @@ import { Loader, AlertTriangle, RefreshCw, LogOut } from 'lucide-react';
 import { BottomNavBar } from './components/BottomNavBar';
 import { TimelinePage } from './components/TimelinePage';
 
-// 🔥 Importações do Firebase
+// Firebase
 import { db } from './firebase';
 import { collection, getDocs } from 'firebase/firestore';
 
-// ======================
-// Hook para media query
-// ======================
+// Hook de mídia
 const useMediaQuery = (query: string) => {
   const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
 
   useEffect(() => {
-    const mediaQueryList = window.matchMedia(query);
-    const listener = (event: MediaQueryListEvent) => setMatches(event.matches);
-    mediaQueryList.addEventListener('change', listener);
-    return () => mediaQueryList.removeEventListener('change', listener);
+    const mql = window.matchMedia(query);
+    const onChange = (e: MediaQueryListEvent) => setMatches(e.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
   }, [query]);
 
   return matches;
 };
 
-// ======================
-// Tela de erro de inicialização
-// ======================
+// Tela de erro
 const InitializationErrorDisplay: React.FC<{ message: string; onRetry: () => void; onLogout: () => void; }> = ({ message, onRetry, onLogout }) => (
   <div className="flex h-screen w-full items-center justify-center bg-coal-black text-white p-4">
     <div className="w-full max-w-lg text-center p-8 bg-black/20 rounded-xl border border-red-500/30">
       <AlertTriangle size={48} className="mx-auto text-red-500 mb-4" />
       <h1 className="text-2xl font-bold font-display text-red-300 mb-2">Falha na Inicialização</h1>
       <p className="text-gray-400 mb-6">
-        Não foi possível conectar aos serviços. Verifique se as credenciais do Firebase estão corretas em <code>firebase.ts</code>.
+        Não foi possível conectar aos serviços. Verifique o arquivo firebase.ts.
       </p>
       <div className="p-4 bg-black/30 rounded-md text-sm text-red-200 text-left font-mono mb-6">
         <strong>Detalhes do Erro:</strong> {message}
       </div>
       <div className="flex justify-center gap-4">
-        <button onClick={onLogout} className="flex items-center px-6 py-2 rounded-lg text-sm font-bold text-gray-300 bg-granite-gray/20 hover:bg-granite-gray/40 transition-colors">
+        <button onClick={onLogout} className="flex items-center px-6 py-2 rounded-lg text-sm font-bold text-gray-300 bg-granite-gray/20 hover:bg-granite-gray/40">
           <LogOut size={16} className="mr-2" />
           Sair
         </button>
-        <button onClick={onRetry} className="flex items-center px-6 py-2 bg-cadmium-yellow rounded-lg text-sm font-bold text-coal-black hover:brightness-110 transition-transform transform active:scale-95">
+        <button onClick={onRetry} className="flex items-center px-6 py-2 bg-cadmium-yellow rounded-lg text-sm font-bold text-coal-black hover:brightness-110 active:scale-95">
           <RefreshCw size={16} className="mr-2" />
           Tentar Novamente
         </button>
@@ -69,9 +65,6 @@ const InitializationErrorDisplay: React.FC<{ message: string; onRetry: () => voi
   </div>
 );
 
-// ======================
-// Componente principal
-// ======================
 export default function App() {
   const {
     currentUser,
@@ -89,33 +82,32 @@ export default function App() {
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
   const [gallerySelectedItem, setGallerySelectedItem] = useState<ServiceOrder | null>(null);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+
+  // Lista lida do Firestore, para confirmar a integração
   const [firestoreOrders, setFirestoreOrders] = useState<any[]>([]);
 
   const isMobile = useMediaQuery('(max-width: 768px)');
 
-  // 🔥 Carregar ordens do Firestore
+  // Carregamento real das ordens do Firestore
   useEffect(() => {
     const carregarOrdens = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, "ordens"));
-        const lista = querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-        console.log("✅ Firestore conectado:", lista);
+        const snap = await getDocs(collection(db, 'ordens'));
+        const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         setFirestoreOrders(lista);
-      } catch (erro) {
-        console.error("Erro ao carregar ordens do Firestore:", erro);
+        console.log('Ordens do Firestore:', lista);
+      } catch (e) {
+        console.error('Erro ao carregar ordens do Firestore', e);
       }
     };
-
     carregarOrdens();
   }, []);
 
   const handleNotificationClick = (orderId?: string) => {
     if (!orderId) return;
     const orderToOpen = orders.find(o => o.id === orderId);
-    if (orderToOpen) {
-      if (currentUser?.role !== UserRole.Viewer) {
-        setSelectedOrder(orderToOpen);
-      }
+    if (orderToOpen && currentUser?.role !== UserRole.Viewer) {
+      setSelectedOrder(orderToOpen);
     }
   };
 
@@ -161,7 +153,7 @@ export default function App() {
         />
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 pb-20 md:pb-6">
 
-          {/* 🔥 Firestore integrado (exibição simples para confirmar) */}
+          {/* Bloco de conferência da integração com Firestore */}
           <div className="mb-6">
             <h2 className="text-xl font-bold mb-2">Ordens do Firestore</h2>
             {firestoreOrders.length === 0 ? (
@@ -170,7 +162,7 @@ export default function App() {
               <ul className="space-y-2">
                 {firestoreOrders.map((ordem) => (
                   <li key={ordem.id} className="bg-black/20 p-3 rounded-lg border border-gray-700">
-                    <strong>{ordem.cliente}</strong> — {ordem.descricao} <span className="text-yellow-400">({ordem.status})</span>
+                    <strong>{ordem.cliente}</strong>, {ordem.descricao} ({ordem.status})
                   </li>
                 ))}
               </ul>
@@ -189,14 +181,14 @@ export default function App() {
           {currentPage === 'Configurações' && <SettingsPage />}
         </main>
       </div>
-
+      
       {isTemplateModalOpen && (
         <TemplateModal 
           onClose={() => setIsTemplateModalOpen(false)}
           onSelect={handleSelectTemplate}
         />
       )}
-
+      
       {isAddModalOpen && (
         <AddOrderModal 
           onClose={() => setIsAddModalOpen(false)}
@@ -216,8 +208,8 @@ export default function App() {
           onClose={() => setGallerySelectedItem(null)}
         />
       )}
-       <NotificationContainer onNotificationClick={handleNotificationClick} />
-       {isMobile && <BottomNavBar />}
+      <NotificationContainer onNotificationClick={handleNotificationClick} />
+      {isMobile && <BottomNavBar />}
     </div>
   );
 }
