@@ -30,11 +30,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
   });
   const [saving, setSaving] = useState(false);
 
-  // 🔍 Filtros e busca
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"Todos" | string>("Todos");
 
-  // 🔄 Realtime sync com Firestore
+  // 🔄 Realtime Firestore sync
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "ordens"), (snapshot) => {
       const fetched = snapshot.docs.map((doc) => ({
@@ -46,7 +45,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
     return () => unsubscribe();
   }, []);
 
-  // 🎯 Drag & Drop
+  // 🎯 Drag & drop
   const handleDragStart = (e: React.DragEvent, orderId: string) => {
     e.dataTransfer.setData("orderId", orderId);
   };
@@ -81,7 +80,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
     }
   };
 
-  // 🧮 Filtro inteligente
+  // 🧠 Filtro e busca
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
       const matchesSearch =
@@ -93,7 +92,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
     });
   }, [orders, search, statusFilter]);
 
-  // 🧱 Renderiza cada coluna
+  // 📊 Cálculos de contadores e progresso
+  const total = orders.length;
+  const abertas = orders.filter((o) => o.status === "Aberta").length;
+  const andamento = orders.filter((o) => o.status === "Em andamento").length;
+  const concluidas = orders.filter((o) => o.status === "Concluída").length;
+  const progresso = total > 0 ? Math.round((concluidas / total) * 100) : 0;
+
+  // 🧱 Colunas
   const renderColumn = (title: string, status: string, color: string) => {
     const filtered = filteredOrders.filter((o) => o.status === status);
 
@@ -180,6 +186,36 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
               {s}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* 📈 Painel de resumo */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-black/40 border border-gray-700 rounded-xl p-4">
+          <h3 className="text-cadmium-yellow text-sm font-medium mb-1">Total</h3>
+          <p className="text-3xl font-bold text-white">{total}</p>
+        </div>
+
+        <div className="bg-black/40 border border-gray-700 rounded-xl p-4">
+          <h3 className="text-blue-400 text-sm font-medium mb-1">Em andamento</h3>
+          <p className="text-3xl font-bold text-white">{andamento}</p>
+        </div>
+
+        <div className="bg-black/40 border border-gray-700 rounded-xl p-4">
+          <h3 className="text-cadmium-yellow text-sm font-medium mb-1">Abertas</h3>
+          <p className="text-3xl font-bold text-white">{abertas}</p>
+        </div>
+
+        <div className="bg-black/40 border border-gray-700 rounded-xl p-4">
+          <h3 className="text-green-400 text-sm font-medium mb-1">Concluídas</h3>
+          <p className="text-3xl font-bold text-white">{concluidas}</p>
+          <div className="w-full bg-gray-700 h-2 mt-2 rounded-full overflow-hidden">
+            <div
+              className="h-2 bg-green-400 transition-all"
+              style={{ width: `${progresso}%` }}
+            ></div>
+          </div>
+          <p className="text-sm text-gray-400 mt-1">{progresso}% concluído</p>
         </div>
       </div>
 
