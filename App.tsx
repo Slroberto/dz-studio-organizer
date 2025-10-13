@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { KanbanBoard } from './components/KanbanBoard';
@@ -8,21 +8,42 @@ import { GalleryPage } from './components/GalleryPage';
 import { GalleryDetailModal } from './components/GalleryDetailModal';
 import { NotificationContainer } from './components/NotificationContainer';
 import { DailySummaryModal } from './components/DailySummaryModal';
-import { ServiceOrder, UserRole } from './types';
+import { ServiceOrder, UserRole, ServiceOrderTemplate } from './types';
 import { LoginPage } from './components/LoginPage';
 import { ActivityLogPage } from './components/ActivityLogPage';
 import { DashboardPage } from './components/DashboardPage';
 import { ReportsPage } from './components/ReportsPage';
+import { SettingsPage } from './components/SettingsPage';
+import { AgendaPage } from './components/AgendaPage';
+import { TemplateModal } from './components/TemplateModal';
 import { useAppContext } from './components/AppContext';
 import { Loader, AlertTriangle, RefreshCw, LogOut } from 'lucide-react';
+import { BottomNavBar } from './components/BottomNavBar'; // Import the new component
+import { TimelinePage } from './components/TimelinePage';
+
+const useMediaQuery = (query: string) => {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+
+  useEffect(() => {
+    const mediaQueryList = window.matchMedia(query);
+    const listener = (event: MediaQueryListEvent) => setMatches(event.matches);
+    
+    mediaQueryList.addEventListener('change', listener);
+
+    return () => mediaQueryList.removeEventListener('change', listener);
+  }, [query]);
+
+  return matches;
+};
+
 
 const InitializationErrorDisplay: React.FC<{ message: string; onRetry: () => void; onLogout: () => void; }> = ({ message, onRetry, onLogout }) => (
   <div className="flex h-screen w-full items-center justify-center bg-coal-black text-white p-4">
     <div className="w-full max-w-lg text-center p-8 bg-black/20 rounded-xl border border-red-500/30">
         <AlertTriangle size={48} className="mx-auto text-red-500 mb-4" />
-        <h1 className="text-2xl font-bold font-display text-red-300 mb-2">Falha na Conexão com a Planilha</h1>
+        <h1 className="text-2xl font-bold font-display text-red-300 mb-2">Falha na Inicialização</h1>
         <p className="text-gray-400 mb-6">
-            Não foi possível carregar os dados. Isso geralmente ocorre se as variáveis de ambiente (como `VITE_GOOGLE_SHEETS_ID`) não estiverem configuradas corretamente no ambiente de produção (Vercel).
+            Não foi possível conectar aos serviços. Isso pode ocorrer se as credenciais do Firebase não estiverem configuradas corretamente no arquivo `firebase.ts`. Verifique o console para mais detalhes.
         </p>
         <div className="p-4 bg-black/30 rounded-md text-sm text-red-200 text-left font-mono mb-6">
             <strong>Detalhes do Erro:</strong> {message}
@@ -54,11 +75,14 @@ export default function App() {
   } = useAppContext();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addModalInitialData, setAddModalInitialData] = useState<Partial<ServiceOrder> | undefined>(undefined);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
   const [gallerySelectedItem, setGallerySelectedItem] = useState<ServiceOrder | null>(null);
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
-  // Daily summary logic can be re-enabled later if needed
-  // const [dailySummaryData, setDailySummaryData] = useState<DailySummaryData | null>(null);
+
+  const isMobile = useMediaQuery('(max-width: 768px)');
+
 
   const handleNotificationClick = (orderId?: string) => {
     if (!orderId) return;
@@ -70,15 +94,31 @@ export default function App() {
     }
   };
 
-  if (!currentUser) {
-    return <LoginPage />;
-  }
+  const handleOpenAddModal = () => {
+    setAddModalInitialData(undefined);
+    setIsAddModalOpen(true);
+  };
+  
+  const handleSelectTemplate = (template: ServiceOrderTemplate) => {
+    setAddModalInitialData({
+        description: template.defaultDescription,
+        imageCount: template.defaultImageCount,
+        value: template.defaultValue,
+    });
+    setIsTemplateModalOpen(false);
+    setIsAddModalOpen(true);
+  };
+
 
   if (initializationError) {
     return <InitializationErrorDisplay message={initializationError} onRetry={fetchAllData} onLogout={logout} />;
   }
   
-  if (isDataLoading) {
+  if (!currentUser) {
+    return <LoginPage />;
+  }
+  
+  if (isDataLoading && orders.length === 0) {
      return (
       <div className="flex h-screen w-full items-center justify-center bg-coal-black text-white">
         <Loader className="animate-spin text-cadmium-yellow" size={48} />
@@ -89,24 +129,42 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-coal-black text-white font-sans">
-      <Sidebar />
+      {!isMobile && <Sidebar />}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onAddOrderClick={() => setIsAddModalOpen(true)} />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-6">
+        <Header 
+            onAddOrderClick={handleOpenAddModal}
+            onAddFromTemplateClick={() => setIsTemplateModalOpen(true)}
+        />
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 pb-20 md:pb-6">
           {currentPage === 'Produção' && (
             <KanbanBoard onSelectOrder={setSelectedOrder} />
           )}
           {currentPage === 'Dashboard' && <DashboardPage onSelectOrder={setSelectedOrder} />}
+          {currentPage === 'Agenda' && <AgendaPage onSelectOrder={setSelectedOrder} />}
           {currentPage === 'Galeria' && (
             <GalleryPage onSelectOrder={setGallerySelectedItem} />
           )}
+          {currentPage === 'Linha do Tempo' && <TimelinePage onSelectOrder={setSelectedOrder} />}
           {currentPage === 'Relatórios' && <ReportsPage />}
           {currentPage === 'Log de Atividade' && <ActivityLogPage />}
+          {currentPage === 'Configurações' && <SettingsPage />}
         </main>
       </div>
-      {isAddModalOpen && (
-        <AddOrderModal onClose={() => setIsAddModalOpen(false)} />
+      
+      {isTemplateModalOpen && (
+        <TemplateModal 
+            onClose={() => setIsTemplateModalOpen(false)}
+            onSelect={handleSelectTemplate}
+        />
       )}
+      
+      {isAddModalOpen && (
+        <AddOrderModal 
+            onClose={() => setIsAddModalOpen(false)}
+            initialData={addModalInitialData}
+        />
+      )}
+
       {selectedOrder && (
         <EditOrderModal
           order={selectedOrder}
@@ -120,12 +178,7 @@ export default function App() {
         />
       )}
        <NotificationContainer onNotificationClick={handleNotificationClick} />
-      {/* {isSummaryModalOpen && dailySummaryData && (
-        <DailySummaryModal 
-            summary={dailySummaryData}
-            onClose={() => setIsSummaryModalOpen(false)}
-        />
-      )} */}
+       {isMobile && <BottomNavBar />}
     </div>
   );
 }

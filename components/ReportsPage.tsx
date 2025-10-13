@@ -1,20 +1,13 @@
+
+
 import React, { useState, useRef, useEffect } from 'react';
 import { ServiceOrder, ActivityLogEntry, OrderStatus, ActivityActionType, WeeklyReportData, AppNotification, NotificationColorType } from '../types';
 import { BarChart3, CalendarCheck, Clock, CheckCircle, AlertTriangle, Users, FileDown, PieChart, Send, Eye, Download, ChevronLeft } from 'lucide-react';
 import { useAppContext } from './AppContext';
+import { StatCard } from './StatCard'; // Import the centralized component
 
 declare const Chart: any;
 declare const jspdf: any;
-
-const StatCard = ({ title, value, icon }: { title: string, value: string | number, icon: React.ReactNode }) => (
-    <div className="bg-black/20 p-4 rounded-lg flex items-center border border-granite-gray/20">
-        <div className="p-3 rounded-full mr-4 bg-granite-gray/20 text-granite-gray-light">{icon}</div>
-        <div>
-            <h3 className="text-sm font-semibold text-granite-gray-light">{title}</h3>
-            <p className="text-2xl font-bold text-white">{value}</p>
-        </div>
-    </div>
-);
 
 const DeliveriesByDayChart = ({ chartData }: { chartData: number[] }) => {
     const chartRef = useRef<HTMLCanvasElement>(null);

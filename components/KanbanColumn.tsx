@@ -42,7 +42,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, orders, onDr
 
   return (
     <div 
-      className={`flex flex-col w-80 flex-shrink-0 h-full rounded-xl transition-colors duration-300 ${isOver ? 'bg-black/40' : 'bg-black/20'}`}
+      className={`flex flex-col w-[90vw] md:w-80 flex-shrink-0 h-full rounded-xl transition-colors duration-300 ${isOver ? 'bg-black/40' : 'bg-black/20'}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}

@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { ServiceOrder } from '../types';
+import { ServiceOrder, UserRole } from '../types';
 import { useAppContext } from './AppContext';
 import { Loader } from 'lucide-react';
 
 interface AddOrderModalProps {
   onClose: () => void;
+  initialData?: Partial<ServiceOrder>;
 }
 
-export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose }) => {
-  const { addOrder, isDataLoading } = useAppContext();
-  const [client, setClient] = useState('');
-  const [orderNumber, setOrderNumber] = useState('');
-  const [description, setDescription] = useState('');
-  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
-  const [imageCount, setImageCount] = useState('');
+export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose, initialData }) => {
+  const { addOrder, isDataLoading, currentUser } = useAppContext();
+  const [client, setClient] = useState(initialData?.client || '');
+  const [orderNumber, setOrderNumber] = useState(initialData?.orderNumber || '');
+  const [description, setDescription] = useState(initialData?.description || '');
+  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState(initialData?.expectedDeliveryDate?.split('T')[0] || '');
+  const [imageCount, setImageCount] = useState(initialData?.imageCount?.toString() || '');
+  const [value, setValue] = useState(initialData?.value?.toString() || '');
 
+  const isAdmin = currentUser?.role === UserRole.Admin;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -32,12 +35,13 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose }) => {
     e.preventDefault();
     if (!client || !orderNumber || !description) return;
     
-    const orderData: Omit<ServiceOrder, 'id' | 'status' | 'progress' | 'lastStatusUpdate' | 'creationDate'> & { imageCount?: number } = {
+    const orderData: Partial<ServiceOrder> = {
         client,
         orderNumber,
         description,
         thumbnailUrl: `https://picsum.photos/seed/${client.replace(/\s+/g, '')}/400/300`,
         imageCount: parseInt(imageCount, 10) || 0,
+        value: parseFloat(value) || 0,
     };
 
     if (expectedDeliveryDate) {
@@ -52,11 +56,11 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose }) => {
 
   return (
     <div 
-        className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 modal-backdrop-animation"
+        className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 modal-backdrop-animation p-4"
         onClick={onClose}
     >
       <div 
-        className="bg-coal-black rounded-xl p-8 w-full max-w-md border border-granite-gray/20 shadow-2xl modal-content-animation"
+        className="bg-coal-black rounded-xl p-6 md:p-8 w-full max-w-md border border-granite-gray/20 shadow-2xl modal-content-animation"
         onClick={e => e.stopPropagation()}
       >
         <h2 className="text-2xl font-bold mb-6 font-display">Nova Ordem de Serviço</h2>
@@ -72,8 +76,8 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose }) => {
               required
             />
           </div>
-          <div className="grid grid-cols-3 gap-4 mb-4">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+             <div>
                 <label htmlFor="orderNumber" className="block text-sm font-medium text-granite-gray-light mb-1">Número da OS</label>
                 <input
                   type="text"
@@ -94,6 +98,8 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose }) => {
                   className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
                 />
             </div>
+          </div>
+           <div className={`grid ${isAdmin ? 'sm:grid-cols-2' : 'grid-cols-1'} gap-4 mb-4`}>
             <div>
                 <label htmlFor="imageCount" className="block text-sm font-medium text-granite-gray-light mb-1">Qtd. Imagens</label>
                 <input
@@ -105,6 +111,20 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose }) => {
                   min="0"
                 />
             </div>
+            {isAdmin && (
+              <div>
+                  <label htmlFor="value" className="block text-sm font-medium text-granite-gray-light mb-1">Valor (R$)</label>
+                  <input
+                    type="number"
+                    id="value"
+                    step="0.01"
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
+                    min="0"
+                  />
+              </div>
+            )}
           </div>
           <div className="mb-6">
             <label htmlFor="description" className="block text-sm font-medium text-granite-gray-light mb-1">Descrição</label>

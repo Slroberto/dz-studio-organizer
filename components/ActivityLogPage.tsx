@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ActivityLogEntry, ActivityActionType } from '../types';
-import { PlusCircle, Edit3, Trash2, ArrowRightCircle, CheckCircle, User, Search, FileDown } from 'lucide-react';
+// FIX: Added MessageSquare and CheckSquare to imports for new action types.
+import { PlusCircle, Edit3, Trash2, ArrowRightCircle, CheckCircle, User, Search, FileDown, MessageSquare, CheckSquare } from 'lucide-react';
 import { useAppContext } from './AppContext';
 
 // This lets TypeScript know that `jspdf` will be available on the global scope
@@ -26,12 +27,16 @@ const formatRelativeTime = (isoString: string): string => {
   return date.toLocaleDateString('pt-BR');
 };
 
+// FIX: Added missing action types (Comment, TaskAdd, TaskComplete) to satisfy the Record type.
 const actionIcons: Record<ActivityActionType, React.ReactNode> = {
   [ActivityActionType.Create]: <PlusCircle size={20} className="text-green-500" />,
   [ActivityActionType.Update]: <Edit3 size={20} className="text-yellow-500" />,
   [ActivityActionType.Delete]: <Trash2 size={20} className="text-red-500" />,
   [ActivityActionType.Move]: <ArrowRightCircle size={20} className="text-purple-500" />,
   [ActivityActionType.Complete]: <CheckCircle size={20} className="text-green-500" />,
+  [ActivityActionType.Comment]: <MessageSquare size={20} className="text-blue-400" />,
+  [ActivityActionType.TaskAdd]: <PlusCircle size={20} className="text-cyan-400" />,
+  [ActivityActionType.TaskComplete]: <CheckSquare size={20} className="text-teal-400" />,
 };
 
 export const ActivityLogPage: React.FC = () => {
@@ -158,7 +163,7 @@ export const ActivityLogPage: React.FC = () => {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full appearance-none bg-black/30 border border-granite-gray/50 rounded-lg pl-10 pr-4 py-2 text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
-                    aria-label="Buscar no log de atividades"
+                    aria-label="Search activity log"
                 />
             </div>
             <div className="flex items-center gap-4">
@@ -166,7 +171,7 @@ export const ActivityLogPage: React.FC = () => {
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
                     className="appearance-none bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
-                    aria-label="Ordenar log de atividades"
+                    aria-label="Sort activity log"
                  >
                     <option value="date-desc">Mais Recentes</option>
                     <option value="date-asc">Mais Antigos</option>

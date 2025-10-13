@@ -1,10 +1,31 @@
-
-// FIX: Changed import to get DailySummaryData from types.ts and break circular dependency.
 import { ServiceOrder, OrderStatus, DailySummaryData } from '../types';
 
 // This is a mock service that simulates a call to the Gemini API.
 // In a real application, this would use the @google/genai library
 // to send a prompt and receive a summary.
+
+export const generateFinancialInsight = (kpi: { totalValue: number, deliveredValue: number, openValue: number, overdueCount: number }): Promise<string> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+        const { totalValue, deliveredValue, openValue, overdueCount } = kpi;
+
+        let insight = `**Análise Financeira (IA):**\n\n`;
+        insight += `Atualmente, o estúdio gerencia **R$ ${totalValue.toFixed(2)}** em projetos. Desse total, **R$ ${deliveredValue.toFixed(2)}** já foram concluídos e entregues, com **R$ ${openValue.toFixed(2)}** em andamento.\n\n`;
+
+        if (overdueCount > 0) {
+            insight += `**Ponto de Atenção:** Identificamos **${overdueCount}** projeto(s) em atraso. Focar na finalização destes itens pode acelerar o fluxo de caixa e melhorar a satisfação do cliente.\n\n`;
+        } else {
+            insight += `**Excelente!** Não há projetos com prazo de entrega vencido. A gestão de tempo está eficiente.\n\n`;
+        }
+
+        const conversionRate = totalValue > 0 ? (deliveredValue / totalValue) * 100 : 0;
+        insight += `A taxa de conversão de projetos em faturamento está em **${conversionRate.toFixed(1)}%**. Manter o ritmo nas colunas de 'Aprovação' e 'Cromia' é crucial para aumentar este indicador.`;
+
+        resolve(insight);
+    }, 1200);
+  });
+};
+
 
 export const generateSummary = (orders: ServiceOrder[]): Promise<string> => {
   return new Promise((resolve) => {

@@ -1,5 +1,5 @@
 {
-  "name": "dz-studio-organizer",
+  "name": "fire--dz-studio-organizer",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,13 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "googleapis": "^126.0.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "lucide-react": "^0.544.0"
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "lucide-react": "0.363.0",
+    "firebase": "^12.4.0"
   },
   "devDependencies": {
-    "@vercel/node": "^3.1.7",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",

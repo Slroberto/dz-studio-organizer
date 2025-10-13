@@ -1,7 +1,7 @@
 import React from 'react';
 import { ServiceOrder, OrderStatus, User, UserRole } from '../types';
 import { ProgressBar } from './ProgressBar';
-import { Trash2, CheckCircle, User as UserIcon, Calendar, Camera } from 'lucide-react';
+import { Trash2, CheckCircle, User as UserIcon, Calendar, Camera, CheckSquare, MessageSquare, DollarSign } from 'lucide-react';
 import { useAppContext } from './AppContext';
 
 interface ServiceOrderCardProps {
@@ -45,7 +45,7 @@ const DeadlineIndicator = ({ date, status }: { date?: string, status: OrderStatu
   const { colorClass, formattedDate } = getDeadlineInfo();
 
   return (
-    <div className={`flex items-center text-xs mt-3 ${colorClass}`}>
+    <div className={`flex items-center text-xs ${colorClass}`}>
       <Calendar size={14} className="mr-2 flex-shrink-0" />
       <span>{formattedDate}</span>
     </div>
@@ -77,6 +77,9 @@ export const ServiceOrderCard: React.FC<ServiceOrderCardProps> = ({ order, onDra
     isInteractive ? "cursor-pointer hover:shadow-[0_0_15px_2px_rgba(220,255,0,0.2)] hover:-translate-y-1" : "cursor-default"
   ].join(' ');
 
+  const completedTasks = order.tasks?.filter(t => t.completed).length || 0;
+  const totalTasks = order.tasks?.length || 0;
+
   return (
     <div
       draggable={isInteractive}
@@ -103,18 +106,11 @@ export const ServiceOrderCard: React.FC<ServiceOrderCardProps> = ({ order, onDra
             {order.client}
           </h3>
         </div>
-        {canDelete && (
-          <button 
-            onClick={(e) => {
-                e.stopPropagation(); // prevent opening modal when deleting
-                deleteOrder(order.id)
-            }}
-            disabled={!canDelete}
-            className="text-granite-gray hover:text-red-500 disabled:text-gray-700 disabled:cursor-not-allowed transition-colors flex-shrink-0 ml-2"
-            aria-label="Excluir Ordem"
-          >
-            <Trash2 size={18} />
-          </button>
+         {currentUser?.role === UserRole.Admin && order.value != null && order.value > 0 && (
+            <div className="flex items-center text-xs font-bold text-green-400 bg-green-900/50 px-2 py-1 rounded-full">
+                <DollarSign size={12} className="mr-1" />
+                {order.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </div>
         )}
       </div>
       <p className="text-sm text-gray-400 mb-4 h-10 overflow-hidden">{order.description}</p>
@@ -125,20 +121,32 @@ export const ServiceOrderCard: React.FC<ServiceOrderCardProps> = ({ order, onDra
       
       <ProgressBar progress={order.progress} />
 
-      <div className="mt-3 flex items-center justify-between">
+      <div className="mt-4 flex items-center justify-between text-xs text-granite-gray-light">
          <DeadlineIndicator date={order.expectedDeliveryDate} status={order.status} />
-        <div className="flex items-center space-x-4">
+         <div className="flex items-center space-x-3">
+            {totalTasks > 0 && (
+                <div className="flex items-center" title={`${completedTasks} de ${totalTasks} tarefas concluídas`}>
+                    <CheckSquare size={14} className="mr-1.5" />
+                    <span>{completedTasks}/{totalTasks}</span>
+                </div>
+            )}
+            {order.comments && order.comments.length > 0 && (
+                <div className="flex items-center" title={`${order.comments.length} comentários`}>
+                    <MessageSquare size={14} className="mr-1.5" />
+                    <span>{order.comments.length}</span>
+                </div>
+            )}
             {order.imageCount && order.imageCount > 0 && (
-                <div className="flex items-center text-xs text-granite-gray-light" title={`${order.imageCount} imagens`}>
+                <div className="flex items-center" title={`${order.imageCount} imagens`}>
                     <Camera size={14} className="mr-1.5" />
                     <span>{order.imageCount}</span>
                 </div>
             )}
-            <div className="flex items-center">
-                <span className="text-xs font-medium text-granite-gray-light mr-2">{order.responsible}</span>
-                <UserIcon size={14} className="text-granite-gray-light" />
+            <div className="flex items-center min-w-0" title={`Responsável: ${order.responsible}`}>
+                <UserIcon size={14} className="mr-1.5 flex-shrink-0" />
+                <span className="truncate">{order.responsible}</span>
             </div>
-        </div>
+         </div>
       </div>
     </div>
   );

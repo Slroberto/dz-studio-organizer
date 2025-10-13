@@ -1,3 +1,5 @@
+
+
 export enum UserRole {
   Admin = 'Admin',
   Assistant = 'Assistant',
@@ -5,11 +7,12 @@ export enum UserRole {
 }
 
 export interface User {
-  id: string; // Google User ID
+  id: string; // Firebase Auth User ID
   name: string;
   email: string;
-  picture?: string; // Google Profile Picture URL
+  picture?: string;
   role: UserRole;
+  password?: string; // Used for creating/updating users in demo mode
 }
 
 export enum OrderStatus {
@@ -20,6 +23,29 @@ export enum OrderStatus {
   ColorGrading = 'Cromia',
   Approval = 'Aprovação',
   Delivered = 'Entregue',
+}
+
+export interface Task {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
+export interface Comment {
+  id: string;
+  userId: string;
+  userName: string;
+  userPicture?: string;
+  text: string;
+  timestamp: string;
+}
+
+export interface StoredFile {
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+  path: string; // Full path in Firebase Storage for deletion
 }
 
 export interface ServiceOrder {
@@ -36,9 +62,22 @@ export interface ServiceOrder {
   expectedDeliveryDate?: string;
   lastStatusUpdate: string;
   creationDate: string;
-  imageCount?: number; // Added to track image quantity
-  _rowIndex?: number; // Internal: to track row number in Google Sheets
+  imageCount?: number;
+  value?: number;
+  tasks?: Task[];
+  comments?: Comment[];
+  files?: StoredFile[];
 }
+
+export interface ServiceOrderTemplate {
+  id: string;
+  title: string;
+  description: string;
+  defaultDescription: string;
+  defaultImageCount: number;
+  defaultValue: number;
+}
+
 
 export interface KanbanColumn {
   title: string;
@@ -65,6 +104,9 @@ export enum ActivityActionType {
   Delete = 'excluiu a OS',
   Move = 'moveu a OS',
   Complete = 'concluiu a OS',
+  Comment = 'comentou na OS',
+  TaskAdd = 'adicionou uma tarefa na OS',
+  TaskComplete = 'completou uma tarefa na OS',
 }
 
 export interface ActivityLogEntry {
