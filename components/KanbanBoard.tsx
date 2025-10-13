@@ -1,103 +1,70 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { KanbanColumn } from './KanbanColumn';
-import { ServiceOrder, User, OrderStatus, UserRole } from '../types';
-import { KANBAN_COLUMNS } from '../constants';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useAppContext } from './AppContext';
+import React, { useEffect, useState } from 'react';
+import { db } from '../firebase';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 
-interface KanbanBoardProps {
-  onSelectOrder: (order: ServiceOrder) => void;
+interface Ordem {
+  id: string;
+  cliente: string;
+  descricao: string;
+  status: string;
 }
 
-export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
-  const { filteredOrders, handleStatusChange, currentUser, recentlyUpdatedOrderId } = useAppContext();
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [showLeftArrow, setShowLeftArrow] = useState(false);
-  const [showRightArrow, setShowRightArrow] = useState(false);
-  
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, orderId: string) => {
-    e.dataTransfer.setData("orderId", orderId);
-  };
-  
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>, newStatus: OrderStatus) => {
-    const orderId = e.dataTransfer.getData("orderId");
-    handleStatusChange(orderId, newStatus);
-  };
-
-  const handleSelectOrder = (order: ServiceOrder) => {
-    if (currentUser?.role !== UserRole.Viewer) {
-      onSelectOrder(order);
-    }
-  }
-
-  const checkScroll = useCallback(() => {
-    const el = scrollContainerRef.current;
-    if (el) {
-      const buffer = 5; // buffer for floating point inaccuracies
-      const { scrollLeft, scrollWidth, clientWidth } = el;
-      setShowLeftArrow(scrollLeft > buffer);
-      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - buffer);
-    }
-  }, []);
+export const KanbanBoard: React.FC<{ onSelectOrder: (ordem: Ordem) => void }> = ({ onSelectOrder }) => {
+  const [ordens, setOrdens] = useState<Ordem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const el = scrollContainerRef.current;
-    if (el) {
-      checkScroll();
-      el.addEventListener('scroll', checkScroll, { passive: true });
-      window.addEventListener('resize', checkScroll);
-    }
-    return () => {
-      if (el) {
-        el.removeEventListener('scroll', checkScroll);
-        window.removeEventListener('resize', checkScroll);
-      }
-    };
-  }, [filteredOrders, checkScroll]);
+    const q = query(collection(db, 'ordens'), orderBy('cliente'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data: Ordem[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Ordem[];
 
-  const handleScroll = (direction: 'left' | 'right') => {
-    const el = scrollContainerRef.current;
-    if (el) {
-      const scrollAmount = direction === 'left' ? -344 : 344; // 320px column + 24px gap
-      el.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }
-  };
-  
-  return (
-    <div className="relative h-full -mx-6">
-       {showLeftArrow && (
-        <button
-          onClick={() => handleScroll('left')}
-          className="absolute left-2 top-1/2 -translate-y-1/2 z-20 p-2 bg-coal-black/80 rounded-full border border-granite-gray/50 text-white hover:bg-cadmium-yellow hover:text-coal-black transition-all shadow-lg"
-          aria-label="Rolar para a esquerda"
-        >
-          <ChevronLeft size={24} />
-        </button>
-      )}
-      <div
-        ref={scrollContainerRef}
-        className="kanban-container flex space-x-6 h-full px-6"
-      >
-        {KANBAN_COLUMNS.map(column => (
-          <KanbanColumn
-            key={column.status}
-            column={column}
-            orders={filteredOrders.filter(order => order.status === column.status)}
-            onDrop={handleDrop}
-            onDragStart={handleDragStart}
-            onSelectOrder={handleSelectOrder}
-          />
-        ))}
+      setOrdens(data);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="text-gray-400 text-center mt-8 animate-pulse">
+        Carregando Kanban...
       </div>
-       {showRightArrow && (
-        <button
-          onClick={() => handleScroll('right')}
-          className="absolute right-2 top-1/2 -translate-y-1/2 z-20 p-2 bg-coal-black/80 rounded-full border border-granite-gray/50 text-white hover:bg-cadmium-yellow hover:text-coal-black transition-all shadow-lg"
-          aria-label="Rolar para a direita"
-        >
-          <ChevronRight size={24} />
-        </button>
-      )}
+    );
+  }
+
+  // Agrupa por status
+  const colunas = ['Aberta', 'Em andamento', 'Concluída'];
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+      {colunas.map((status) => (
+        <div key={status} className="bg-black/30 rounded-xl border border-gray-700 p-4">
+          <h3 className="text-cadmium-yellow text-lg font-bold mb-4">
+            {status}
+          </h3>
+
+          {ordens
+            .filter((ordem) => ordem.status === status)
+            .map((ordem) => (
+              <div
+                key={ordem.id}
+                onClick={() => onSelectOrder(ordem)}
+                className="bg-black/40 border border-gray-600 rounded-lg p-4 mb-3 cursor-pointer hover:bg-black/60 transition"
+              >
+                <p className="font-semibold text-white">{ordem.cliente}</p>
+                <p className="text-gray-400 text-sm">{ordem.descricao}</p>
+              </div>
+            ))}
+
+          {ordens.filter((ordem) => ordem.status === status).length === 0 && (
+            <p className="text-gray-500 text-sm text-center">Nenhuma OS</p>
+          )}
+        </div>
+      ))}
     </div>
   );
 };
