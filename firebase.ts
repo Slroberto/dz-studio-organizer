@@ -3,29 +3,17 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-// =================================================================================
-// IMPORTANTE: CONFIGURAÇÃO DO FIREBASE
-// =================================================================================
-// Substitua os valores de placeholder abaixo pela configuração real do seu projeto Firebase.
-// É altamente recomendado usar variáveis de ambiente para esses dados sensíveis.
-// Por exemplo: apiKey: process.env.REACT_APP_FIREBASE_API_KEY
-// Você pode encontrar esses valores no console do seu projeto Firebase em
-// Configurações do Projeto > Geral > Seus apps > App da Web.
-// =================================================================================
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY_HERE",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyCCjsFUn2_i-iQMaQkhaf4R7oG8R2M1_Cw",
+  authDomain: "dz-studio-organizer-84315.firebaseapp.com",
+  projectId: "dz-studio-organizer-84315",
+  storageBucket: "dz-studio-organizer-84315.appspot.com",
+  messagingSenderId: "921869203951",
+  appId: "1:921869203951:web:ed3ff6aec6fcdc38dade1a"
 };
 
-
-// Inicializa o Firebase
 const app = initializeApp(firebaseConfig);
 
-// Exporta os serviços do Firebase
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
