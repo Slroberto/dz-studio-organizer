@@ -1,25 +1,25 @@
 {
-  "name": "fire--dz-studio-organizer",
-  "private": true,
+  "name": "dz-studio-organizer",
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview --port 3000"
   },
   "dependencies": {
-    "firebase": "^12.4.0",
-    "jspdf": "^3.0.3",
-    "jspdf-autotable": "^5.0.2",
-    "lucide-react": "0.363.0",
-    "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "@emailjs/browser": "^3.11.0",
+    "firebase": "^11.0.2",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.8.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.5.4",
+    "vite": "^6.3.6"
   }
 }
