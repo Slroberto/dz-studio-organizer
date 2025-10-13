@@ -1,43 +1,37 @@
-import React, { useState } from 'react';
-import { db } from '../firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import React, { useState } from "react";
+import { db } from "../firebase";
+import { doc, updateDoc } from "firebase/firestore";
 
-interface AddOrderModalProps {
-  onClose: () => void;
-  initialData?: Partial<{
+interface EditOrderModalProps {
+  order: {
+    id: string;
     cliente: string;
     descricao: string;
     status: string;
-  }>;
+  };
+  onClose: () => void;
 }
 
-export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose, initialData }) => {
-  const [cliente, setCliente] = useState(initialData?.cliente || '');
-  const [descricao, setDescricao] = useState(initialData?.descricao || '');
-  const [status, setStatus] = useState(initialData?.status || 'Aberta');
+export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }) => {
+  const [cliente, setCliente] = useState(order.cliente);
+  const [descricao, setDescricao] = useState(order.descricao);
+  const [status, setStatus] = useState(order.status);
   const [salvando, setSalvando] = useState(false);
 
   const handleSalvar = async () => {
-    if (!cliente || !descricao) {
-      alert('Por favor, preencha todos os campos.');
-      return;
-    }
-
-    setSalvando(true);
-
     try {
-      await addDoc(collection(db, 'ordens'), {
+      setSalvando(true);
+      const ref = doc(db, "ordens", order.id);
+      await updateDoc(ref, {
         cliente,
         descricao,
         status,
-        criadoEm: serverTimestamp(),
       });
-
-      alert('Ordem criada com sucesso!');
+      alert("Ordem atualizada com sucesso!");
       onClose();
     } catch (error) {
-      console.error('Erro ao criar ordem:', error);
-      alert('Erro ao salvar a ordem. Tente novamente.');
+      console.error("Erro ao atualizar ordem:", error);
+      alert("Erro ao salvar alterações.");
     } finally {
       setSalvando(false);
     }
@@ -46,7 +40,9 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose, initialDa
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50">
       <div className="bg-coal-black p-6 rounded-2xl shadow-xl w-full max-w-md border border-gray-700">
-        <h2 className="text-xl font-bold text-cadmium-yellow mb-4">Nova OS</h2>
+        <h2 className="text-xl font-bold text-cadmium-yellow mb-4">
+          Editar Ordem de Serviço
+        </h2>
 
         <div className="space-y-4">
           <div>
@@ -95,7 +91,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose, initialDa
             disabled={salvando}
             className="px-4 py-2 rounded-md bg-cadmium-yellow text-coal-black font-semibold hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {salvando ? 'Salvando...' : 'Salvar'}
+            {salvando ? "Salvando..." : "Salvar"}
           </button>
         </div>
       </div>
