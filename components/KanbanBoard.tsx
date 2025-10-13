@@ -8,13 +8,16 @@ import {
   addDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { Search } from "lucide-react";
+import { Search, FileDown, FileSpreadsheet } from "lucide-react";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 interface ServiceOrder {
   id: string;
   cliente: string;
   descricao: string;
   status: string;
+  criadoEm?: any;
 }
 
 interface KanbanBoardProps {
@@ -49,13 +52,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
   const handleDragStart = (e: React.DragEvent, orderId: string) => {
     e.dataTransfer.setData("orderId", orderId);
   };
-
   const handleDrop = async (e: React.DragEvent, newStatus: string) => {
     const orderId = e.dataTransfer.getData("orderId");
     const orderRef = doc(db, "ordens", orderId);
     await updateDoc(orderRef, { status: newStatus });
   };
-
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
   // ➕ Criação inline
@@ -92,17 +93,65 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
     });
   }, [orders, search, statusFilter]);
 
-  // 📊 Cálculos de contadores e progresso
+  // 📊 Contadores
   const total = orders.length;
   const abertas = orders.filter((o) => o.status === "Aberta").length;
   const andamento = orders.filter((o) => o.status === "Em andamento").length;
   const concluidas = orders.filter((o) => o.status === "Concluída").length;
   const progresso = total > 0 ? Math.round((concluidas / total) * 100) : 0;
 
+  // 🧾 Exportar CSV
+  const exportCSV = () => {
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      ["Cliente,Descrição,Status,Data"]
+        .concat(
+          filteredOrders.map((o) =>
+            [
+              o.cliente,
+              o.descricao.replace(/,/g, ";"),
+              o.status,
+              o.criadoEm?.toDate
+                ? o.criadoEm.toDate().toLocaleDateString()
+                : "-",
+            ].join(",")
+          )
+        )
+        .join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "relatorio_OS.csv");
+    document.body.appendChild(link);
+    link.click();
+  };
+
+  // 🧾 Exportar PDF
+  const exportPDF = () => {
+    const docPDF = new jsPDF();
+    docPDF.setFontSize(16);
+    docPDF.text("Relatório de Ordens de Serviço", 14, 15);
+    docPDF.setFontSize(11);
+    (docPDF as any).autoTable({
+      startY: 25,
+      head: [["Cliente", "Descrição", "Status", "Data"]],
+      body: filteredOrders.map((o) => [
+        o.cliente,
+        o.descricao,
+        o.status,
+        o.criadoEm?.toDate
+          ? o.criadoEm.toDate().toLocaleDateString()
+          : "-",
+      ]),
+      theme: "grid",
+    });
+    docPDF.save("relatorio_OS.pdf");
+  };
+
   // 🧱 Colunas
   const renderColumn = (title: string, status: string, color: string) => {
     const filtered = filteredOrders.filter((o) => o.status === status);
-
     return (
       <div
         className="flex-1 p-3 bg-black/20 rounded-2xl border border-gray-700 min-h-[400px] flex flex-col"
@@ -111,7 +160,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
       >
         <h2 className={`text-${color}-400 font-bold mb-3`}>{title}</h2>
 
-        {/* Cards */}
         <div className="flex-1 space-y-2 overflow-y-auto">
           {filtered.length === 0 ? (
             <p className="text-gray-500 text-sm italic">Nenhuma OS</p>
@@ -131,7 +179,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
           )}
         </div>
 
-        {/* Campo para nova OS */}
+        {/* Nova OS */}
         <div className="mt-3 border-t border-gray-700 pt-3">
           <input
             type="text"
@@ -156,7 +204,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
 
   return (
     <div className="flex flex-col gap-4 text-white">
-      {/* 🔍 Barra de busca e filtros */}
+      {/* 🔍 Barra de busca, filtros e exportação */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-3 p-3 bg-black/40 rounded-xl border border-gray-700">
         <div className="relative w-full md:w-1/2">
           <Search
@@ -172,7 +220,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
           />
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
           {["Todos", "Aberta", "Em andamento", "Concluída"].map((s) => (
             <button
               key={s}
@@ -186,6 +234,19 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
               {s}
             </button>
           ))}
+
+          <button
+            onClick={exportPDF}
+            className="flex items-center gap-2 px-3 py-1.5 bg-red-500/80 hover:bg-red-500 text-white rounded-md text-sm"
+          >
+            <FileDown size={16} /> PDF
+          </button>
+          <button
+            onClick={exportCSV}
+            className="flex items-center gap-2 px-3 py-1.5 bg-green-500/80 hover:bg-green-500 text-white rounded-md text-sm"
+          >
+            <FileSpreadsheet size={16} /> CSV
+          </button>
         </div>
       </div>
 
@@ -195,17 +256,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
           <h3 className="text-cadmium-yellow text-sm font-medium mb-1">Total</h3>
           <p className="text-3xl font-bold text-white">{total}</p>
         </div>
-
         <div className="bg-black/40 border border-gray-700 rounded-xl p-4">
           <h3 className="text-blue-400 text-sm font-medium mb-1">Em andamento</h3>
           <p className="text-3xl font-bold text-white">{andamento}</p>
         </div>
-
         <div className="bg-black/40 border border-gray-700 rounded-xl p-4">
           <h3 className="text-cadmium-yellow text-sm font-medium mb-1">Abertas</h3>
           <p className="text-3xl font-bold text-white">{abertas}</p>
         </div>
-
         <div className="bg-black/40 border border-gray-700 rounded-xl p-4">
           <h3 className="text-green-400 text-sm font-medium mb-1">Concluídas</h3>
           <p className="text-3xl font-bold text-white">{concluidas}</p>
