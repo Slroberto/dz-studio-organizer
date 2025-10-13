@@ -1,51 +1,65 @@
-import React, { useEffect, useState } from "react";
-import { db } from "../firebase";
-import { collection, getDocs } from "firebase/firestore";
+import React, { useEffect, useState } from 'react';
+import { db } from '../firebase';
+import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 
-type Ordem = {
+interface Ordem {
   id: string;
-  cliente?: string;
-  descricao?: string;
-  status?: string;
-};
+  cliente: string;
+  descricao: string;
+  status: string;
+}
 
-export function FirestoreOrdersPreview() {
+export const FirestoreOrdersPreview: React.FC = () => {
   const [ordens, setOrdens] = useState<Ordem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    const carregar = async () => {
-      try {
-        const snap = await getDocs(collection(db, "ordens"));
-        const lista = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Ordem[];
-        setOrdens(lista);
-      } catch (e: any) {
-        setErro(e?.message ?? "Erro ao ler Firestore");
-      } finally {
-        setLoading(false);
-      }
-    };
-    carregar();
+    const q = query(collection(db, 'ordens'), orderBy('criadoEm', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data: Ordem[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Ordem[];
+
+      setOrdens(data);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
+  if (loading) {
+    return (
+      <div className="text-gray-400 text-center mt-8 animate-pulse">
+        Carregando ordens do Firestore...
+      </div>
+    );
+  }
+
+  if (ordens.length === 0) {
+    return (
+      <div className="text-gray-400 text-center mt-8">
+        Nenhuma ordem encontrada.
+      </div>
+    );
+  }
+
   return (
-    <div className="mb-6">
-      <h2 className="text-xl font-bold mb-2">Ordens do Firestore</h2>
-      {loading && <p className="text-gray-400">Carregando...</p>}
-      {erro && <p className="text-red-400">Erro: {erro}</p>}
-      {!loading && !erro && ordens.length === 0 && (
-        <p className="text-gray-400">Nenhuma ordem encontrada.</p>
-      )}
-      {!loading && !erro && ordens.length > 0 && (
-        <ul className="space-y-2">
-          {ordens.map((o) => (
-            <li key={o.id} className="bg-black/20 p-3 rounded-lg border border-gray-700">
-              <strong>{o.cliente ?? "Sem cliente"}</strong>, {o.descricao ?? "Sem descrição"} ({o.status ?? "Sem status"})
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="mt-8">
+      <h2 className="text-xl font-bold mb-4 text-cadmium-yellow">Ordens do Firestore</h2>
+      <ul className="space-y-3">
+        {ordens.map((ordem) => (
+          <li
+            key={ordem.id}
+            className="bg-black/20 border border-gray-700 rounded-lg p-4 hover:bg-black/30 transition"
+          >
+            <p className="text-white font-semibold">
+              {ordem.cliente} — {ordem.descricao}{' '}
+              <span className="text-cadmium-yellow">({ordem.status})</span>
+            </p>
+          </li>
+        ))}
+      </ul>
     </div>
   );
-}
+};
