@@ -1,47 +1,36 @@
-import React, { useState, useEffect } from 'react';
-import { db } from '../firebase';
-import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
+import React, { useState } from "react";
+import { db } from "../firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
-interface EditOrderModalProps {
-  orderId: string;
+interface AddOrderModalProps {
   onClose: () => void;
 }
 
-export const EditOrderModal: React.FC<EditOrderModalProps> = ({ orderId, onClose }) => {
-  const [cliente, setCliente] = useState('');
-  const [descricao, setDescricao] = useState('');
-  const [status, setStatus] = useState('Aberta');
+export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose }) => {
+  const [cliente, setCliente] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [status, setStatus] = useState("Aberta");
   const [salvando, setSalvando] = useState(false);
 
-  // 🔹 Buscar os dados em tempo real
-  useEffect(() => {
-    const unsubscribe = onSnapshot(doc(db, 'ordens', orderId), (snapshot) => {
-      const data = snapshot.data();
-      if (data) {
-        setCliente(data.cliente || '');
-        setDescricao(data.descricao || '');
-        setStatus(data.status || 'Aberta');
-      }
-    });
-    return () => unsubscribe();
-  }, [orderId]);
-
-  // 🔹 Atualizar no Firestore
   const handleSalvar = async () => {
+    if (!cliente || !descricao) {
+      alert("Preencha todos os campos.");
+      return;
+    }
+
     try {
       setSalvando(true);
-      const ref = doc(db, 'ordens', orderId);
-      await updateDoc(ref, {
+      await addDoc(collection(db, "ordens"), {
         cliente,
         descricao,
         status,
-        atualizadoEm: new Date(),
+        criadoEm: serverTimestamp(),
       });
-      alert('Ordem atualizada com sucesso!');
+      alert("Nova OS adicionada com sucesso!");
       onClose();
     } catch (error) {
-      console.error('Erro ao atualizar a OS:', error);
-      alert('Erro ao salvar alterações.');
+      console.error("Erro ao adicionar OS:", error);
+      alert("Erro ao salvar OS.");
     } finally {
       setSalvando(false);
     }
@@ -50,7 +39,9 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ orderId, onClose
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50">
       <div className="bg-coal-black p-6 rounded-2xl shadow-xl w-full max-w-md border border-gray-700">
-        <h2 className="text-xl font-bold text-cadmium-yellow mb-4">Editar Ordem de Serviço</h2>
+        <h2 className="text-xl font-bold text-cadmium-yellow mb-4">
+          Nova Ordem de Serviço
+        </h2>
 
         <div className="space-y-4">
           <div>
@@ -74,7 +65,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ orderId, onClose
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Status</label>
+            <label className="block text-sm text-gray-400 mb-1">Status inicial</label>
             <select
               className="w-full p-2 rounded-md bg-black/40 text-white border border-gray-600 focus:border-cadmium-yellow outline-none"
               value={status}
@@ -99,7 +90,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ orderId, onClose
             disabled={salvando}
             className="px-4 py-2 rounded-md bg-cadmium-yellow text-coal-black font-semibold hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {salvando ? 'Salvando...' : 'Salvar'}
+            {salvando ? "Salvando..." : "Salvar"}
           </button>
         </div>
       </div>
