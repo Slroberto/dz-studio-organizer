@@ -1,287 +1,99 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
+import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "../firebase";
-import {
-  collection,
-  onSnapshot,
-  doc,
-  updateDoc,
-  addDoc,
-  serverTimestamp,
-} from "firebase/firestore";
-import { Search, FileDown, FileSpreadsheet } from "lucide-react";
-import jsPDF from "jspdf";
+import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 
-interface ServiceOrder {
+interface Order {
   id: string;
   cliente: string;
   descricao: string;
   status: string;
-  criadoEm?: any;
 }
 
-interface KanbanBoardProps {
-  onSelectOrder: (order: ServiceOrder) => void;
-}
+export const KanbanBoard: React.FC = () => {
+  const [orders, setOrders] = useState<Order[]>([]);
 
-export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
-  const [orders, setOrders] = useState<ServiceOrder[]>([]);
-  const [newOrders, setNewOrders] = useState<{ [key: string]: string }>({
-    Aberta: "",
-    "Em andamento": "",
-    Concluída: "",
-  });
-  const [saving, setSaving] = useState(false);
-
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"Todos" | string>("Todos");
-
-  // 🔄 Realtime Firestore sync
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "ordens"), (snapshot) => {
-      const fetched = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as ServiceOrder[];
+    const fetchOrders = async () => {
+      const snapshot = await getDocs(collection(db, "ordens"));
+      const fetched = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as Order[];
       setOrders(fetched);
-    });
-    return () => unsubscribe();
+    };
+    fetchOrders();
   }, []);
 
-  // 🎯 Drag & drop
-  const handleDragStart = (e: React.DragEvent, orderId: string) => {
-    e.dataTransfer.setData("orderId", orderId);
-  };
-  const handleDrop = async (e: React.DragEvent, newStatus: string) => {
-    const orderId = e.dataTransfer.getData("orderId");
-    const orderRef = doc(db, "ordens", orderId);
-    await updateDoc(orderRef, { status: newStatus });
-  };
-  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
-
-  // ➕ Criação inline
-  const handleAddOrder = async (status: string) => {
-    const descricao = newOrders[status].trim();
-    if (!descricao) return alert("Digite uma descrição antes de salvar.");
-
-    setSaving(true);
-    try {
-      await addDoc(collection(db, "ordens"), {
-        cliente: "Novo Cliente",
-        descricao,
-        status,
-        criadoEm: serverTimestamp(),
-      });
-      setNewOrders((prev) => ({ ...prev, [status]: "" }));
-    } catch (err) {
-      console.error("Erro ao criar OS:", err);
-      alert("Erro ao salvar a nova OS.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // 🧠 Filtro e busca
-  const filteredOrders = useMemo(() => {
-    return orders.filter((o) => {
-      const matchesSearch =
-        o.cliente.toLowerCase().includes(search.toLowerCase()) ||
-        o.descricao.toLowerCase().includes(search.toLowerCase());
-      const matchesStatus =
-        statusFilter === "Todos" ? true : o.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [orders, search, statusFilter]);
-
-  // 📊 Contadores
-  const total = orders.length;
-  const abertas = orders.filter((o) => o.status === "Aberta").length;
-  const andamento = orders.filter((o) => o.status === "Em andamento").length;
-  const concluidas = orders.filter((o) => o.status === "Concluída").length;
-  const progresso = total > 0 ? Math.round((concluidas / total) * 100) : 0;
-
-  // 🧾 Exportar CSV
-  const exportCSV = () => {
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      ["Cliente,Descrição,Status,Data"]
-        .concat(
-          filteredOrders.map((o) =>
-            [
-              o.cliente,
-              o.descricao.replace(/,/g, ";"),
-              o.status,
-              o.criadoEm?.toDate
-                ? o.criadoEm.toDate().toLocaleDateString()
-                : "-",
-            ].join(",")
-          )
-        )
-        .join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "relatorio_OS.csv");
-    document.body.appendChild(link);
-    link.click();
-  };
-
-  // 🧾 Exportar PDF
-  const exportPDF = () => {
-    const docPDF = new jsPDF();
-    docPDF.setFontSize(16);
-    docPDF.text("Relatório de Ordens de Serviço", 14, 15);
-    docPDF.setFontSize(11);
-    (docPDF as any).autoTable({
-      startY: 25,
-      head: [["Cliente", "Descrição", "Status", "Data"]],
-      body: filteredOrders.map((o) => [
-        o.cliente,
-        o.descricao,
-        o.status,
-        o.criadoEm?.toDate
-          ? o.criadoEm.toDate().toLocaleDateString()
-          : "-",
-      ]),
-      theme: "grid",
-    });
-    docPDF.save("relatorio_OS.pdf");
-  };
-
-  // 🧱 Colunas
-  const renderColumn = (title: string, status: string, color: string) => {
-    const filtered = filteredOrders.filter((o) => o.status === status);
-    return (
-      <div
-        className="flex-1 p-3 bg-black/20 rounded-2xl border border-gray-700 min-h-[400px] flex flex-col"
-        onDragOver={handleDragOver}
-        onDrop={(e) => handleDrop(e, status)}
-      >
-        <h2 className={`text-${color}-400 font-bold mb-3`}>{title}</h2>
-
-        <div className="flex-1 space-y-2 overflow-y-auto">
-          {filtered.length === 0 ? (
-            <p className="text-gray-500 text-sm italic">Nenhuma OS</p>
-          ) : (
-            filtered.map((order) => (
-              <div
-                key={order.id}
-                draggable
-                onDragStart={(e) => handleDragStart(e, order.id)}
-                onClick={() => onSelectOrder(order)}
-                className="bg-black/40 hover:bg-black/60 p-3 rounded-xl border border-gray-600 cursor-move transition-all"
-              >
-                <h3 className="font-semibold text-white">{order.cliente}</h3>
-                <p className="text-gray-400 text-sm">{order.descricao}</p>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Nova OS */}
-        <div className="mt-3 border-t border-gray-700 pt-3">
-          <input
-            type="text"
-            placeholder="Descrição da nova OS..."
-            className="w-full p-2 text-sm rounded-md bg-black/40 text-white border border-gray-600 focus:border-cadmium-yellow outline-none mb-2"
-            value={newOrders[status]}
-            onChange={(e) =>
-              setNewOrders((prev) => ({ ...prev, [status]: e.target.value }))
-            }
-          />
-          <button
-            onClick={() => handleAddOrder(status)}
-            disabled={saving}
-            className="w-full py-1.5 text-sm bg-cadmium-yellow text-coal-black font-semibold rounded-md hover:brightness-110 disabled:opacity-50 transition"
-          >
-            {saving ? "Salvando..." : "+ Adicionar OS"}
-          </button>
-        </div>
-      </div>
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    await updateDoc(doc(db, "ordens", id), { status: newStatus });
+    setOrders((prev) =>
+      prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o))
     );
   };
 
+  const exportToPDF = () => {
+    const pdf = new jsPDF();
+    pdf.text("Relatório de Ordens de Serviço", 14, 20);
+    (pdf as any).autoTable({
+      startY: 30,
+      head: [["Cliente", "Descrição", "Status"]],
+      body: orders.map((o) => [o.cliente, o.descricao, o.status]),
+    });
+    pdf.save("ordens.pdf");
+  };
+
+  const grouped = {
+    Aberta: orders.filter((o) => o.status === "Aberta"),
+    "Em Progresso": orders.filter((o) => o.status === "Em Progresso"),
+    Concluída: orders.filter((o) => o.status === "Concluída"),
+  };
+
   return (
-    <div className="flex flex-col gap-4 text-white">
-      {/* 🔍 Barra de busca, filtros e exportação */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-3 p-3 bg-black/40 rounded-xl border border-gray-700">
-        <div className="relative w-full md:w-1/2">
-          <Search
-            size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-          />
-          <input
-            type="text"
-            placeholder="Buscar por cliente ou descrição..."
-            className="w-full pl-10 pr-3 py-2 rounded-md bg-black/40 border border-gray-600 focus:border-cadmium-yellow outline-none text-sm"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        <div className="flex flex-wrap gap-2 items-center">
-          {["Todos", "Aberta", "Em andamento", "Concluída"].map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium ${
-                statusFilter === s
-                  ? "bg-cadmium-yellow text-coal-black"
-                  : "bg-black/40 border border-gray-600 text-gray-300 hover:bg-black/60"
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-
-          <button
-            onClick={exportPDF}
-            className="flex items-center gap-2 px-3 py-1.5 bg-red-500/80 hover:bg-red-500 text-white rounded-md text-sm"
-          >
-            <FileDown size={16} /> PDF
-          </button>
-          <button
-            onClick={exportCSV}
-            className="flex items-center gap-2 px-3 py-1.5 bg-green-500/80 hover:bg-green-500 text-white rounded-md text-sm"
-          >
-            <FileSpreadsheet size={16} /> CSV
-          </button>
-        </div>
+    <div className="p-6 bg-coal-black min-h-screen text-white">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-cadmium-yellow">
+          Painel Kanban
+        </h1>
+        <button
+          onClick={exportToPDF}
+          className="bg-cadmium-yellow text-black px-4 py-2 rounded-md font-semibold hover:opacity-90"
+        >
+          Exportar PDF
+        </button>
       </div>
 
-      {/* 📈 Painel de resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-black/40 border border-gray-700 rounded-xl p-4">
-          <h3 className="text-cadmium-yellow text-sm font-medium mb-1">Total</h3>
-          <p className="text-3xl font-bold text-white">{total}</p>
-        </div>
-        <div className="bg-black/40 border border-gray-700 rounded-xl p-4">
-          <h3 className="text-blue-400 text-sm font-medium mb-1">Em andamento</h3>
-          <p className="text-3xl font-bold text-white">{andamento}</p>
-        </div>
-        <div className="bg-black/40 border border-gray-700 rounded-xl p-4">
-          <h3 className="text-cadmium-yellow text-sm font-medium mb-1">Abertas</h3>
-          <p className="text-3xl font-bold text-white">{abertas}</p>
-        </div>
-        <div className="bg-black/40 border border-gray-700 rounded-xl p-4">
-          <h3 className="text-green-400 text-sm font-medium mb-1">Concluídas</h3>
-          <p className="text-3xl font-bold text-white">{concluidas}</p>
-          <div className="w-full bg-gray-700 h-2 mt-2 rounded-full overflow-hidden">
-            <div
-              className="h-2 bg-green-400 transition-all"
-              style={{ width: `${progresso}%` }}
-            ></div>
+      <div className="grid grid-cols-3 gap-6">
+        {Object.entries(grouped).map(([status, items]) => (
+          <div
+            key={status}
+            className="bg-black/40 rounded-lg p-4 border border-gray-700"
+          >
+            <h2 className="text-xl font-semibold text-cadmium-yellow mb-4">
+              {status}
+            </h2>
+            {items.map((order) => (
+              <div
+                key={order.id}
+                onClick={() =>
+                  handleStatusChange(
+                    order.id,
+                    order.status === "Aberta"
+                      ? "Em Progresso"
+                      : order.status === "Em Progresso"
+                      ? "Concluída"
+                      : "Aberta"
+                  )
+                }
+                className="bg-coal-black p-3 rounded-md mb-3 shadow-md cursor-pointer hover:bg-gray-800"
+              >
+                <h3 className="text-lg font-bold">{order.cliente}</h3>
+                <p className="text-gray-400">{order.descricao}</p>
+              </div>
+            ))}
           </div>
-          <p className="text-sm text-gray-400 mt-1">{progresso}% concluído</p>
-        </div>
-      </div>
-
-      {/* 🧱 Colunas do Kanban */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {renderColumn("Aberta", "Aberta", "cadmium-yellow")}
-        {renderColumn("Em andamento", "Em andamento", "blue")}
-        {renderColumn("Concluída", "Concluída", "green")}
+        ))}
       </div>
     </div>
   );
