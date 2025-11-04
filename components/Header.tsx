@@ -1,66 +1,109 @@
-import React from 'react';
-import { UserRole } from '../types';
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { UserRole, ServiceOrder } from '../types';
 import { PlusCircle, Bot, Search, XCircle, LogOut, LayoutGrid } from 'lucide-react';
 import { useAppContext } from './AppContext';
+import { GlobalSearchResults } from './GlobalSearchResults';
 
 interface HeaderProps {
   onAddOrderClick: () => void;
   onAddFromTemplateClick: () => void;
+  onSelectOrderFromSearch: (order: ServiceOrder) => void;
+}
+
+export interface HeaderRef {
+  focusSearch: () => void;
 }
 
 const pageTitles: { [key: string]: string } = {
   'Produção': 'Painel de Produção',
   'Dashboard': 'Dashboard',
+  'Comercial': 'Dashboard Comercial',
   'Agenda': 'Agenda de Entregas',
   'Galeria': 'Galeria',
   'Linha do Tempo': 'Linha do Tempo',
+  'Financeiro': 'Dashboard Financeiro',
+  'Chat': 'Chat Interno',
   'Relatórios': 'Relatórios de Desempenho',
   'Log de Atividade': 'Log de Atividade',
   'Configurações': 'Configurações',
 };
 
 
-export const Header: React.FC<HeaderProps> = ({ onAddOrderClick, onAddFromTemplateClick }) => {
+export const Header = forwardRef<HeaderRef, HeaderProps>(({ onAddOrderClick, onAddFromTemplateClick, onSelectOrderFromSearch }, ref) => {
   const {
     currentPage,
     currentUser,
     logout,
-    searchTerm,
-    setSearchTerm,
-    isStalledFilterActive,
-    clearFilters
   } = useAppContext();
 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    focusSearch: () => {
+      searchInputRef.current?.focus();
+    },
+  }));
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setIsSearchVisible(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   if (!currentUser) return null;
+  
+  const handleCloseSearch = () => {
+    setIsSearchVisible(false);
+    setSearchTerm('');
+  };
 
   return (
     <header className="flex-shrink-0 flex flex-col md:flex-row items-start md:items-center justify-between p-4 md:p-6 border-b border-granite-gray/20 gap-4">
       <h1 className="text-xl md:text-2xl font-bold font-display text-gray-200">{pageTitles[currentPage] || 'DZ Studio'}</h1>
       <div className="w-full md:w-auto flex items-center justify-between md:justify-end md:space-x-4">
-        {currentPage === 'Produção' && (
-          <div className="flex-grow md:flex-grow-0">
-            {isStalledFilterActive ? (
-                <div className="flex items-center bg-yellow-900/50 border border-yellow-400/30 text-yellow-200 rounded-lg px-3 py-2 text-sm">
-                    <span>Pendentes</span>
-                    <button onClick={clearFilters} className="ml-2 hover:text-white">
-                        <XCircle size={16} />
-                    </button>
-                </div>
-            ) : (
-                <div className="relative">
-                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-granite-gray" />
-                    <input
-                        type="text"
-                        placeholder="Buscar..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full md:w-64 appearance-none bg-black/30 border border-granite-gray/50 rounded-lg pl-10 pr-4 py-2 text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
-                        aria-label="Search orders"
-                    />
-                </div>
-            )}
+        
+        <div ref={searchContainerRef} className="relative flex-1 md:flex-initial">
+          <div className="relative">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-granite-gray" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Busca global... (Cmd+K)"
+              value={searchTerm}
+              onFocus={() => setIsSearchVisible(true)}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full md:w-64 bg-black/30 border border-granite-gray/50 rounded-lg pl-10 pr-4 py-2 text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow transition-all"
+            />
           </div>
-        )}
+          {isSearchVisible && searchTerm && (
+            <GlobalSearchResults
+              searchTerm={searchTerm}
+              onClose={handleCloseSearch}
+              onSelectOrder={(order) => {
+                onSelectOrderFromSearch(order);
+                handleCloseSearch();
+              }}
+              onAddOrderClick={() => {
+                onAddOrderClick();
+                handleCloseSearch();
+              }}
+               onAddFromTemplateClick={() => {
+                onAddFromTemplateClick();
+                handleCloseSearch();
+              }}
+            />
+          )}
+        </div>
 
         <div className="flex items-center space-x-2">
             <div className="flex items-center space-x-2 bg-black/30 border border-granite-gray/50 rounded-lg pl-3 pr-2 py-1.5">
@@ -100,4 +143,4 @@ export const Header: React.FC<HeaderProps> = ({ onAddOrderClick, onAddFromTempla
       </div>
     </header>
   );
-};
+});

@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { ActivityLogEntry, ActivityActionType } from '../types';
 // FIX: Added MessageSquare and CheckSquare to imports for new action types.
-import { PlusCircle, Edit3, Trash2, ArrowRightCircle, CheckCircle, User, Search, FileDown, MessageSquare, CheckSquare } from 'lucide-react';
+// FIX: Added Receipt icon for invoice-related action types.
+import { PlusCircle, Edit3, Trash2, ArrowRightCircle, CheckCircle, User, Search, FileDown, MessageSquare, CheckSquare, Receipt } from 'lucide-react';
 import { useAppContext } from './AppContext';
 
 // This lets TypeScript know that `jspdf` will be available on the global scope
@@ -37,6 +38,9 @@ const actionIcons: Record<ActivityActionType, React.ReactNode> = {
   [ActivityActionType.Comment]: <MessageSquare size={20} className="text-blue-400" />,
   [ActivityActionType.TaskAdd]: <PlusCircle size={20} className="text-cyan-400" />,
   [ActivityActionType.TaskComplete]: <CheckSquare size={20} className="text-teal-400" />,
+  // FIX: Added missing properties for invoice actions to satisfy the Record type.
+  [ActivityActionType.InvoiceGenerate]: <Receipt size={20} className="text-green-400" />,
+  [ActivityActionType.InvoiceStatusUpdate]: <Receipt size={20} className="text-blue-400" />,
 };
 
 export const ActivityLogPage: React.FC = () => {

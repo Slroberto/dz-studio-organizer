@@ -1,29 +1,28 @@
 import { ServiceOrder, OrderStatus, DailySummaryData } from '../types';
 
-// This is a mock service that simulates a call to the Gemini API.
-// In a real application, this would use the @google/genai library
-// to send a prompt and receive a summary.
+// This service is now fully mocked and does not use any external APIs.
 
-export const generateFinancialInsight = (kpi: { totalValue: number, deliveredValue: number, openValue: number, overdueCount: number }): Promise<string> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-        const { totalValue, deliveredValue, openValue, overdueCount } = kpi;
+export const generateFinancialInsight = async (kpi: { totalValue: number, deliveredValue: number, openValue: number, overdueCount: number }): Promise<string> => {
+    const { deliveredValue, openValue, overdueCount } = kpi;
+    
+    // MOCK IMPLEMENTATION
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const insight = `
+**Análise Financeira (IA Mock):**
 
-        let insight = `**Análise Financeira (IA):**\n\n`;
-        insight += `Atualmente, o estúdio gerencia **R$ ${totalValue.toFixed(2)}** em projetos. Desse total, **R$ ${deliveredValue.toFixed(2)}** já foram concluídos e entregues, com **R$ ${openValue.toFixed(2)}** em andamento.\n\n`;
+**Resumo Financeiro:**
+Excelente progresso! Seu faturamento já realizado atingiu **${deliveredValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}**. Com **${openValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}** em projetos ainda em andamento, o pipeline para as próximas semanas está robusto.
 
-        if (overdueCount > 0) {
-            insight += `**Ponto de Atenção:** Identificamos **${overdueCount}** projeto(s) em atraso. Focar na finalização destes itens pode acelerar o fluxo de caixa e melhorar a satisfação do cliente.\n\n`;
-        } else {
-            insight += `**Excelente!** Não há projetos com prazo de entrega vencido. A gestão de tempo está eficiente.\n\n`;
-        }
+**Ponto de Atenção:**
+Atualmente, há **${overdueCount} projeto${overdueCount === 1 ? '' : 's'} com o prazo vencido**. É recomendável focar na finalização destes para garantir a satisfação do cliente e liberar o faturamento pendente.
 
-        const conversionRate = totalValue > 0 ? (deliveredValue / totalValue) * 100 : 0;
-        insight += `A taxa de conversão de projetos em faturamento está em **${conversionRate.toFixed(1)}%**. Manter o ritmo nas colunas de 'Aprovação' e 'Cromia' é crucial para aumentar este indicador.`;
-
-        resolve(insight);
-    }, 1200);
-  });
+**Recomendação Estratégica:**
+Continue focando em mover os projetos para a etapa de 'Entregue'. A performance atual é sólida e manter o ritmo garantirá um fluxo de caixa saudável para o estúdio.
+            `;
+            resolve(insight.trim());
+        }, 1200); // Simulate API call latency
+    });
 };
 
 
@@ -55,9 +54,9 @@ const createPrompt = (orders: ServiceOrder[]): string => {
 
 const generateMockResponse = (orders: ServiceOrder[]): string => {
     const total = orders.length;
-    const delivered = orders.filter(o => o.status === OrderStatus.Delivered).length;
-    const waiting = orders.filter(o => o.status === OrderStatus.Waiting).length;
-    const inApproval = orders.filter(o => o.status === OrderStatus.Approval).length;
+    const delivered = orders.filter(o => o.status === 'Entregue').length;
+    const waiting = orders.filter(o => o.status === 'Aguardando produto').length;
+    const inApproval = orders.filter(o => o.status === 'Aprovação').length;
 
     return `
 Great work today, team! Here's a quick look at our progress:
@@ -76,18 +75,18 @@ export const generateDailySummaryData = (orders: ServiceOrder[], userName: strin
     const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
     const twoDaysAgo = new Date(now.getTime() - (2 * 24 * 60 * 60 * 1000));
 
-    const inProgress = orders.filter(o => o.status !== OrderStatus.Waiting && o.status !== OrderStatus.Delivered).length;
-    const delivered = orders.filter(o => o.status === OrderStatus.Delivered).length;
-    const waiting = orders.filter(o => o.status === OrderStatus.Waiting).length;
+    const inProgress = orders.filter(o => o.status !== 'Aguardando produto' && o.status !== 'Entregue').length;
+    const delivered = orders.filter(o => o.status === 'Entregue').length;
+    const waiting = orders.filter(o => o.status === 'Aguardando produto').length;
 
-    const newOrders = orders.filter(o => new Date(o.lastStatusUpdate) > twentyFourHoursAgo && o.status === OrderStatus.Waiting).length;
+    const newOrders = orders.filter(o => new Date(o.creationDate) > twentyFourHoursAgo).length;
     
     const stalledOrders = orders.filter(o => 
-        o.status !== OrderStatus.Delivered && new Date(o.lastStatusUpdate) < twoDaysAgo
+        o.status !== 'Entregue' && new Date(o.lastStatusUpdate) < twoDaysAgo
     );
     
     const dueToday = orders.filter(o => 
-        o.expectedDeliveryDate && o.expectedDeliveryDate.split('T')[0] === todayStr && o.status !== OrderStatus.Delivered
+        o.expectedDeliveryDate && o.expectedDeliveryDate.split('T')[0] === todayStr && o.status !== 'Entregue'
     ).length;
     
     return {

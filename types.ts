@@ -1,5 +1,3 @@
-
-
 export enum UserRole {
   Admin = 'Admin',
   Assistant = 'Assistant',
@@ -7,23 +5,15 @@ export enum UserRole {
 }
 
 export interface User {
-  id: string; // Firebase Auth User ID
+  id: string; // Google User ID or unique identifier in mock mode
   name: string;
   email: string;
-  picture?: string;
+  picture?: string; // Google Profile Picture URL
   role: UserRole;
-  password?: string; // Used for creating/updating users in demo mode
+  password?: string; // Added for mock user management
 }
 
-export enum OrderStatus {
-  Waiting = 'Aguardando produto',
-  Shooting = 'Em foto',
-  Development = 'Revelação',
-  PostProduction = 'Pós',
-  ColorGrading = 'Cromia',
-  Approval = 'Aprovação',
-  Delivered = 'Entregue',
-}
+export type OrderStatus = string;
 
 export interface Task {
   id: string;
@@ -32,7 +22,7 @@ export interface Task {
 }
 
 export interface Comment {
-  id: string;
+  id:string;
   userId: string;
   userName: string;
   userPicture?: string;
@@ -40,13 +30,45 @@ export interface Comment {
   timestamp: string;
 }
 
-export interface StoredFile {
+export type CustomFieldType = 'text' | 'number' | 'date' | 'boolean';
+
+export interface CustomFieldDefinition {
+  id: string;
   name: string;
-  url: string;
-  type: string;
-  size: number;
-  path: string; // Full path in Firebase Storage for deletion
+  type: CustomFieldType;
 }
+
+// --- Visual Proofing Types ---
+export interface ProofComment {
+  id: string;
+  x: number; // percentage
+  y: number; // percentage
+  text: string;
+  author: string;
+  timestamp: string;
+  resolved: boolean;
+}
+
+export interface ProofImage {
+  id: string;
+  url: string;
+  comments: ProofComment[];
+}
+
+// --- Invoicing Types ---
+export enum InvoiceStatus {
+  Pendente = 'Pendente',
+  Pago = 'Pago',
+  Atrasado = 'Atrasado',
+}
+
+export interface Invoice {
+  invoiceNumber: string;
+  issueDate: string; // ISO String
+  dueDate: string; // ISO String
+  status: InvoiceStatus;
+}
+
 
 export interface ServiceOrder {
   id: string;
@@ -64,9 +86,16 @@ export interface ServiceOrder {
   creationDate: string;
   imageCount?: number;
   value?: number;
+  costs?: number; // Added for financial tracking
+  profitMargin?: number; // Calculated field, might not be stored directly
+  invoice?: Invoice; // Added for invoicing feature
   tasks?: Task[];
   comments?: Comment[];
-  files?: StoredFile[];
+  shareableToken?: string;
+  customFields?: Record<string, string | number | boolean>;
+  proofingGallery?: ProofImage[];
+  notes?: string;
+  _rowIndex?: number;
 }
 
 export interface ServiceOrderTemplate {
@@ -82,6 +111,7 @@ export interface ServiceOrderTemplate {
 export interface KanbanColumn {
   title: string;
   status: OrderStatus;
+  color: string;
 }
 
 export enum NotificationColorType {
@@ -107,6 +137,8 @@ export enum ActivityActionType {
   Comment = 'comentou na OS',
   TaskAdd = 'adicionou uma tarefa na OS',
   TaskComplete = 'completou uma tarefa na OS',
+  InvoiceGenerate = 'gerou a fatura para a OS',
+  InvoiceStatusUpdate = 'atualizou o status da fatura da OS'
 }
 
 export interface ActivityLogEntry {
@@ -144,4 +176,127 @@ export interface DailySummaryData {
   newOrders: number;
   stalled: ServiceOrder[];
   dueToday: number;
+}
+
+// --- Commercial Dashboard & Quote Types ---
+
+export enum QuoteStatus {
+  Draft = 'Rascunho',
+  Sent = 'Enviado',
+  Negotiating = 'Em Negociação',
+  Approved = 'Aprovado',
+  Rejected = 'Recusado',
+}
+
+export interface QuoteItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface CommercialQuote {
+  id: string;
+  quoteNumber: string;
+  client: string;
+  responsible: string;
+  status: QuoteStatus;
+  sentDate: string; // ISO String
+  validUntil: string; // ISO String
+  items: QuoteItem[];
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  terms: string;
+  notes?: string; // Internal notes, not visible on PDF
+  value: number; // This will be the calculated total
+  decisionDate?: string; // ISO String
+  lossReason?: 'Preço' | 'Prazo' | 'Concorrência' | 'Escopo' | 'Outro';
+}
+
+// --- Catalog Service Item Type ---
+export interface CatalogServiceItem {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+}
+
+// --- Kanban Filters & Views ---
+export interface KanbanFilters {
+  searchTerm?: string;
+  client?: string;
+  responsible?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface KanbanView {
+  id: string;
+  name: string;
+  filters: KanbanFilters;
+}
+
+// --- Financial Dashboard Types ---
+export type FinancialCategory = 'Salário' | 'Aluguel' | 'Software' | 'Marketing' | 'Matéria-Prima' | 'Freelancer' | 'Impostos' | 'Outros';
+
+export interface FixedCost {
+  id: string;
+  name: string;
+  value: number;
+  category: FinancialCategory;
+  dueDate?: number; // Day of the month
+}
+
+export interface VariableCost {
+  id: string;
+  description: string;
+  value: number;
+  category: FinancialCategory;
+  date: string; // ISO String
+  orderId?: string; // Optional: link to a specific OS
+}
+
+export interface RevenueEntry {
+  id:string;
+  description: string;
+  value: number;
+  date: string; // ISO String
+  orderId?: string; // Optional: link to a specific OS
+}
+
+// --- Chat Types ---
+export enum ChannelType {
+  Group = 'group',
+  Private = 'private',
+}
+
+export interface ChatAttachment {
+  name: string;
+  type: string; // MIME type
+  url: string;  // data: URL for mock
+  size: number; // in bytes
+}
+
+export interface ChatMessage {
+  id: string;
+  channelId: string;
+  senderId: string; // userId
+  senderName: string;
+  senderPicture?: string;
+  text: string;
+  timestamp: string; // ISO String
+  attachment?: ChatAttachment;
+  reactions?: { [emoji: string]: string[] }; // emoji: [userId, userId, ...]
+  replyTo?: string; // messageId of the message being replied to
+  mentions?: string[]; // Array of user IDs
+  editedAt?: string; // ISO String for when the message was last edited
+}
+
+export interface ChatChannel {
+  id: string;
+  name: string; // For groups, this is the group name. For private, it could be the other user's name.
+  type: ChannelType;
+  members: string[]; // array of user IDs
+  lastMessage?: ChatMessage;
+  unreadCount: number; // This will be calculated on the client
 }

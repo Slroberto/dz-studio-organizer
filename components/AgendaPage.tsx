@@ -27,7 +27,7 @@ export const AgendaPage: React.FC<AgendaPageProps> = ({ onSelectOrder }) => {
     const { orders } = useAppContext();
 
     const upcomingOrders = orders
-        .filter(o => o.expectedDeliveryDate && o.status !== OrderStatus.Delivered)
+        .filter(o => o.expectedDeliveryDate && o.status !== 'Entregue')
         .sort((a, b) => new Date(a.expectedDeliveryDate!).getTime() - new Date(b.expectedDeliveryDate!).getTime());
 
     return (

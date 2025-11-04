@@ -4,13 +4,13 @@ import { useAppContext } from './AppContext';
 
 export const LoginPage: React.FC = () => {
   const { login, isInitializing, authError } = useAppContext();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('sandro@dz.studio');
+  const [password, setPassword] = useState('123');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (email && password) {
-      await login(email, password);
+      login(email, password);
     }
   };
 

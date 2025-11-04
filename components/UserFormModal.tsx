@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import { Loader, Camera } from 'lucide-react';
+import { useAppContext } from './AppContext';
 
 interface UserFormModalProps {
   user: User | null;
@@ -9,6 +10,7 @@ interface UserFormModalProps {
 }
 
 export const UserFormModal: React.FC<UserFormModalProps> = ({ user, onClose, onSave }) => {
+  const { isDataLoading } = useAppContext();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -45,7 +47,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({ user, onClose, onS
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalUser: User = {
       id: user?.id || '', // Will be replaced by addUser for new users
@@ -55,7 +57,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({ user, onClose, onS
       role: formData.role,
       picture: formData.picture,
     };
-    onSave(finalUser);
+    await onSave(finalUser);
   };
 
   return (
@@ -136,15 +138,17 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({ user, onClose, onS
             <button
               type="button"
               onClick={onClose}
+              disabled={isDataLoading}
               className="px-6 py-2 rounded-lg text-sm font-bold text-gray-300 bg-granite-gray/20 hover:bg-granite-gray/40 transition-colors"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-6 py-2 w-28 bg-cadmium-yellow rounded-lg text-sm font-bold text-coal-black hover:brightness-110 transition-transform transform active:scale-95"
+              disabled={isDataLoading}
+              className="px-6 py-2 w-28 bg-cadmium-yellow rounded-lg text-sm font-bold text-coal-black hover:brightness-110 transition-transform transform active:scale-95 disabled:opacity-50"
             >
-              Salvar
+              {isDataLoading ? <Loader size={18} className="animate-spin mx-auto" /> : 'Salvar'}
             </button>
           </div>
         </form>

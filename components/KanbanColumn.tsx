@@ -9,9 +9,11 @@ interface KanbanColumnProps {
   onDrop: (e: React.DragEvent<HTMLDivElement>, status: OrderStatus) => void;
   onDragStart: (e: React.DragEvent<HTMLDivElement>, orderId: string) => void;
   onSelectOrder: (order: ServiceOrder) => void;
+  draggedOrderId: string | null;
+  onDragEnd: () => void;
 }
 
-export const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, orders, onDrop, onDragStart, onSelectOrder }) => {
+export const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, orders, onDrop, onDragStart, onSelectOrder, draggedOrderId, onDragEnd }) => {
   const { currentUser, recentlyUpdatedOrderId } = useAppContext();
   const [isOver, setIsOver] = useState(false);
 
@@ -42,12 +44,15 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, orders, onDr
 
   return (
     <div 
-      className={`flex flex-col w-[90vw] md:w-80 flex-shrink-0 h-full rounded-xl transition-colors duration-300 ${isOver ? 'bg-black/40' : 'bg-black/20'}`}
+      className={`flex flex-col w-[90vw] md:w-80 flex-shrink-0 h-full rounded-xl transition-colors duration-300 ${isOver ? 'bg-black/40 border-2 border-dashed border-cadmium-yellow' : 'bg-black/20'}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div className="p-4 border-b-2 border-granite-gray/20 flex items-center justify-between">
+      <div 
+        className="p-4 border-b-2 border-granite-gray/20 flex items-center justify-between border-t-4 rounded-t-xl"
+        style={{ borderTopColor: column.color }}
+      >
         <h2 className="font-bold text-gray-300">{column.title}</h2>
         <span className="text-sm font-semibold bg-gray-700 text-gray-300 rounded-full px-2 py-1">{orders.length}</span>
       </div>
@@ -60,6 +65,8 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, orders, onDr
             onSelect={onSelectOrder}
             isRecentlyUpdated={order.id === recentlyUpdatedOrderId}
             isFreshlyUpdated={isOrderFreshlyUpdated(order.lastStatusUpdate)}
+            isDragging={order.id === draggedOrderId}
+            onDragEnd={onDragEnd}
           />
         ))}
       </div>

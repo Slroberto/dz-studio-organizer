@@ -51,7 +51,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ onSelectOrder }) => {
             
             <div className="flex-1 overflow-y-auto pr-2">
                 {filteredOrders.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                         {filteredOrders.map(order => (
                             <GalleryCard key={order.id} order={order} onSelect={onSelectOrder} />
                         ))}

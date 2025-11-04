@@ -1,4 +1,4 @@
-import { OrderStatus, KanbanColumn, ServiceOrderTemplate } from './types';
+import { KanbanColumn, ServiceOrderTemplate, CustomFieldDefinition, FinancialCategory } from './types';
 
 // User roles are now determined by email address from Google Sign-In.
 // This acts as an access control list.
@@ -43,13 +43,31 @@ export const SERVICE_ORDER_TEMPLATES: ServiceOrderTemplate[] = [
   }
 ];
 
+export const DEFAULT_KANBAN_COLUMNS: KanbanColumn[] = [
+  { title: 'Aguardando produto', status: 'Aguardando produto', color: '#3b82f6' }, // Blue
+  { title: 'Conferência de Produto', status: 'Conferência de Produto', color: '#ef4444' }, // Red
+  { title: 'Em foto', status: 'Em foto', color: '#f97316' }, // Orange
+  { title: 'Revelação', status: 'Revelação', color: '#eab308' }, // Yellow
+  { title: 'Pós-produção', status: 'Pós-produção', color: '#a855f7' }, // Purple
+  { title: 'Cromia', status: 'Cromia', color: '#ec4899' }, // Pink
+  { title: 'Aprovação', status: 'Aprovação', color: '#f43f5e' }, // Rose
+  { title: 'Entrega', status: 'Entrega', color: '#16a34a' }, // Green-600
+  { title: 'Entregue', status: 'Entregue', color: '#22c55e' }, // Green-500 (Final Status)
+];
 
-export const KANBAN_COLUMNS: KanbanColumn[] = [
-  { title: 'Aguardando produto', status: OrderStatus.Waiting },
-  { title: 'Em foto', status: OrderStatus.Shooting },
-  { title: 'Revelação', status: OrderStatus.Development },
-  { title: 'Pós-produção', status: OrderStatus.PostProduction },
-  { title: 'Cromia', status: OrderStatus.ColorGrading },
-  { title: 'Aprovação', status: OrderStatus.Approval },
-  { title: 'Entregue', status: OrderStatus.Delivered },
+export const DEFAULT_CUSTOM_FIELDS: CustomFieldDefinition[] = [
+  {
+    id: 'cf-1',
+    name: 'Local da Sessão',
+    type: 'text'
+  },
+  {
+    id: 'cf-2',
+    name: 'Figurino Recebido?',
+    type: 'boolean'
+  }
+];
+
+export const FINANCIAL_CATEGORIES: FinancialCategory[] = [
+  'Salário', 'Aluguel', 'Software', 'Marketing', 'Matéria-Prima', 'Freelancer', 'Impostos', 'Outros'
 ];

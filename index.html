@@ -96,6 +96,14 @@
       .animate-slide-in-right {
         animation: slide-in-right 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
       }
+      
+      @keyframes panel-backdrop-fade-in {
+        from { background-color: rgba(0,0,0,0); }
+        to { background-color: rgba(0,0,0,0.5); }
+      }
+      .panel-backdrop-animation {
+        animation: panel-backdrop-fade-in 0.4s ease-out forwards;
+      }
 
       @keyframes timer-bar {
         from { width: 100%; }
@@ -152,6 +160,39 @@
         animation: deadline-pulse-overdue 2s infinite;
       }
 
+      /* Hide arrows from number input */
+      input[type=number]::-webkit-inner-spin-button, 
+      input[type=number]::-webkit-outer-spin-button { 
+        -webkit-appearance: none; 
+        margin: 0; 
+      }
+      input[type=number] {
+        -moz-appearance: textfield;
+      }
+
+      /* Typing Indicator Animation */
+      @keyframes typing-dots-blink {
+          0% { opacity: .2; }
+          20% { opacity: 1; }
+          100% { opacity: .2; }
+      }
+      .typing-dots span {
+          animation-name: typing-dots-blink;
+          animation-duration: 1.4s;
+          animation-iteration-count: infinite;
+          animation-fill-mode: both;
+          font-weight: bold;
+          font-size: 1.2em;
+          position: relative;
+          top: -2px;
+      }
+      .typing-dots span:nth-child(2) {
+          animation-delay: .2s;
+      }
+      .typing-dots span:nth-child(3) {
+          animation-delay: .4s;
+      }
+
     </style>
     <script>
       tailwind.config = {
@@ -174,18 +215,25 @@
   <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@18.2.0",
-    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-    "react/": "https://esm.sh/react@18.2.0/",
-    "react-dom/": "https://esm.sh/react-dom@18.2.0/",
-    "lucide-react": "https://esm.sh/lucide-react@0.363.0",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.4.0/"
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.544.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@0.17.0"
   }
 }
 </script>
 </head>
   <body class="bg-[#181818]">
     <div id="root"></div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- Google API & Identity Scripts (DISABLED FOR FAKE/MOCK MODE) -->
+    <!-- <script async defer src="https://apis.google.com/js/api.js"></script> -->
+    <!-- <script async defer src="https://accounts.google.com/gsi/client"></script> -->
+
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

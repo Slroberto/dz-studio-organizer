@@ -1,103 +1,223 @@
-import React, { useState } from 'react';
-import { db } from '../firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { ServiceOrder, UserRole, CustomFieldDefinition } from '../types';
+import { useAppContext } from './AppContext';
+import { Loader } from 'lucide-react';
 
 interface AddOrderModalProps {
   onClose: () => void;
-  initialData?: Partial<{
-    cliente: string;
-    descricao: string;
-    status: string;
-  }>;
+  initialData?: Partial<ServiceOrder>;
 }
 
+const RenderCustomField: React.FC<{
+  field: CustomFieldDefinition,
+  value: any,
+  onChange: (fieldId: string, value: any) => void
+}> = ({ field, value, onChange }) => {
+    switch (field.type) {
+        case 'text':
+            return <input type="text" value={value || ''} onChange={e => onChange(field.id, e.target.value)} className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow" />;
+        case 'number':
+            return <input type="number" value={value || ''} onChange={e => onChange(field.id, parseFloat(e.target.value))} className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow" />;
+        case 'date':
+            return <input type="date" value={(value || '').split('T')[0]} onChange={e => onChange(field.id, e.target.value)} className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow" />;
+        case 'boolean':
+            return <div className="flex items-center h-full"><input type="checkbox" checked={!!value} onChange={e => onChange(field.id, e.target.checked)} className="w-5 h-5 rounded bg-black/30 border-granite-gray-light text-cadmium-yellow focus:ring-cadmium-yellow" /></div>;
+        default:
+            return null;
+    }
+};
+
 export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose, initialData }) => {
-  const [cliente, setCliente] = useState(initialData?.cliente || '');
-  const [descricao, setDescricao] = useState(initialData?.descricao || '');
-  const [status, setStatus] = useState(initialData?.status || 'Aberta');
-  const [salvando, setSalvando] = useState(false);
+  const { addOrder, isDataLoading, currentUser, customFieldDefinitions } = useAppContext();
+  const [client, setClient] = useState(initialData?.client || '');
+  const [orderNumber, setOrderNumber] = useState(initialData?.orderNumber || '');
+  const [description, setDescription] = useState(initialData?.description || '');
+  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState(initialData?.expectedDeliveryDate?.split('T')[0] || '');
+  const [imageCount, setImageCount] = useState(initialData?.imageCount?.toString() || '');
+  const [value, setValue] = useState(initialData?.value?.toString() || '');
+  const [costs, setCosts] = useState(initialData?.costs?.toString() || '');
+  const [customFields, setCustomFields] = useState<Record<string, any>>({});
 
-  const handleSalvar = async () => {
-    if (!cliente || !descricao) {
-      alert('Por favor, preencha todos os campos.');
-      return;
+  const isAdmin = currentUser?.role === UserRole.Admin;
+
+  const handleCustomFieldChange = (fieldId: string, fieldValue: any) => {
+    setCustomFields(prev => ({...prev, [fieldId]: fieldValue}));
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!client || !orderNumber || !description) return;
+    
+    // Process custom field dates
+    const processedCustomFields = { ...customFields };
+    customFieldDefinitions.forEach(field => {
+        if (field.type === 'date' && processedCustomFields[field.id]) {
+            const date = new Date(processedCustomFields[field.id]);
+            date.setHours(12);
+            processedCustomFields[field.id] = date.toISOString();
+        }
+    });
+    
+    const orderData: Partial<ServiceOrder> = {
+        client,
+        orderNumber,
+        description,
+        thumbnailUrl: `https://picsum.photos/seed/${client.replace(/\s+/g, '')}/400/300`,
+        imageCount: parseInt(imageCount, 10) || 0,
+        value: parseFloat(value) || 0,
+        costs: parseFloat(costs) || 0,
+        customFields: processedCustomFields,
+    };
+
+    if (expectedDeliveryDate) {
+        const date = new Date(expectedDeliveryDate);
+        date.setHours(12); // Avoid timezone issues
+        orderData.expectedDeliveryDate = date.toISOString();
     }
 
-    setSalvando(true);
-
-    try {
-      await addDoc(collection(db, 'ordens'), {
-        cliente,
-        descricao,
-        status,
-        criadoEm: serverTimestamp(),
-      });
-
-      alert('Ordem criada com sucesso!');
-      onClose();
-    } catch (error) {
-      console.error('Erro ao criar ordem:', error);
-      alert('Erro ao salvar a ordem. Tente novamente.');
-    } finally {
-      setSalvando(false);
-    }
+    await addOrder(orderData);
+    onClose();
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50">
-      <div className="bg-coal-black p-6 rounded-2xl shadow-xl w-full max-w-md border border-gray-700">
-        <h2 className="text-xl font-bold text-cadmium-yellow mb-4">Nova OS</h2>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Cliente</label>
+    <div 
+        className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 modal-backdrop-animation p-4"
+        onClick={onClose}
+    >
+      <div 
+        className="bg-coal-black rounded-xl p-6 md:p-8 w-full max-w-md border border-granite-gray/20 shadow-2xl modal-content-animation max-h-[90vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <h2 className="text-2xl font-bold mb-6 font-display flex-shrink-0">Nova Ordem de Serviço</h2>
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto pr-2">
+          <div className="mb-4">
+            <label htmlFor="client" className="block text-sm font-medium text-granite-gray-light mb-1">Cliente</label>
             <input
               type="text"
-              className="w-full p-2 rounded-md bg-black/40 text-white border border-gray-600 focus:border-cadmium-yellow outline-none"
-              value={cliente}
-              onChange={(e) => setCliente(e.target.value)}
+              id="client"
+              value={client}
+              onChange={(e) => setClient(e.target.value)}
+              className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
+              required
             />
           </div>
-
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Descrição</label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+             <div>
+                <label htmlFor="orderNumber" className="block text-sm font-medium text-granite-gray-light mb-1">Número da OS</label>
+                <input
+                  type="text"
+                  id="orderNumber"
+                  value={orderNumber}
+                  onChange={(e) => setOrderNumber(e.target.value)}
+                  className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
+                  required
+                />
+            </div>
+             <div>
+                <label htmlFor="expectedDeliveryDate" className="block text-sm font-medium text-granite-gray-light mb-1">Previsão</label>
+                <input
+                  type="date"
+                  id="expectedDeliveryDate"
+                  value={expectedDeliveryDate}
+                  onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+                  className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
+                />
+            </div>
+          </div>
+           <div className={`grid ${isAdmin ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'} gap-4 mb-4`}>
+            <div className={isAdmin ? 'sm:col-span-1' : ''}>
+                <label htmlFor="imageCount" className="block text-sm font-medium text-granite-gray-light mb-1">Qtd. Imagens</label>
+                <input
+                  type="number"
+                  id="imageCount"
+                  value={imageCount}
+                  onChange={(e) => setImageCount(e.target.value)}
+                  className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
+                  min="0"
+                />
+            </div>
+            {isAdmin && (
+              <>
+              <div>
+                  <label htmlFor="value" className="block text-sm font-medium text-granite-gray-light mb-1">Valor (R$)</label>
+                  <input
+                    type="number"
+                    id="value"
+                    step="0.01"
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
+                    min="0"
+                  />
+              </div>
+               <div>
+                  <label htmlFor="costs" className="block text-sm font-medium text-granite-gray-light mb-1">Custos (R$)</label>
+                  <input
+                    type="number"
+                    id="costs"
+                    step="0.01"
+                    value={costs}
+                    onChange={(e) => setCosts(e.target.value)}
+                    className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
+                    min="0"
+                  />
+              </div>
+              </>
+            )}
+          </div>
+          <div className="mb-4">
+            <label htmlFor="description" className="block text-sm font-medium text-granite-gray-light mb-1">Descrição</label>
             <textarea
-              className="w-full p-2 rounded-md bg-black/40 text-white border border-gray-600 focus:border-cadmium-yellow outline-none"
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              value={descricao}
-              onChange={(e) => setDescricao(e.target.value)}
+              className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
+              required
             />
           </div>
 
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Status</label>
-            <select
-              className="w-full p-2 rounded-md bg-black/40 text-white border border-gray-600 focus:border-cadmium-yellow outline-none"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-            >
-              <option value="Aberta">Aberta</option>
-              <option value="Em andamento">Em andamento</option>
-              <option value="Concluída">Concluída</option>
-            </select>
+          {customFieldDefinitions.length > 0 && <hr className="border-granite-gray/20 my-4"/>}
+          
+          <div className="space-y-4">
+            {customFieldDefinitions.map(field => (
+                <div key={field.id}>
+                    <label htmlFor={field.id} className="block text-sm font-medium text-granite-gray-light mb-1">{field.name}</label>
+                    <RenderCustomField field={field} value={customFields[field.id]} onChange={handleCustomFieldChange} />
+                </div>
+            ))}
           </div>
-        </div>
-
-        <div className="flex justify-end gap-3 mt-6">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-md bg-gray-700 hover:bg-gray-600 text-sm font-medium text-white"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSalvar}
-            disabled={salvando}
-            className="px-4 py-2 rounded-md bg-cadmium-yellow text-coal-black font-semibold hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {salvando ? 'Salvando...' : 'Salvar'}
-          </button>
-        </div>
+          
+          <div className="flex justify-end space-x-4 mt-6 pt-4 border-t border-granite-gray/20 flex-shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isDataLoading}
+              className="px-6 py-2 rounded-lg text-sm font-bold text-gray-300 bg-granite-gray/20 hover:bg-granite-gray/40 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={isDataLoading}
+              className="px-6 py-2 w-28 bg-cadmium-yellow rounded-lg text-sm font-bold text-coal-black hover:brightness-110 transition-transform transform active:scale-95 disabled:opacity-50"
+            >
+              {isDataLoading ? <Loader size={18} className="animate-spin mx-auto"/> : 'Criar OS'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

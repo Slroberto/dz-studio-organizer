@@ -1,99 +1,138 @@
-import React, { useEffect, useState } from "react";
-import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
-import { db } from "../firebase";
-import { jsPDF } from "jspdf";
-import "jspdf-autotable";
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { KanbanColumn } from './KanbanColumn';
+import { ServiceOrder, User, OrderStatus, UserRole } from '../types';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useAppContext } from './AppContext';
+import { KanbanFilterPanel } from './KanbanFilterPanel';
 
-interface Order {
-  id: string;
-  cliente: string;
-  descricao: string;
-  status: string;
+interface KanbanBoardProps {
+  onSelectOrder: (order: ServiceOrder) => void;
 }
 
-export const KanbanBoard: React.FC = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
+export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
+  const { filteredOrders, handleStatusChange, currentUser, kanbanColumns } = useAppContext();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(false);
+  const [draggedOrderId, setDraggedOrderId] = useState<string | null>(null);
+  
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, orderId: string) => {
+    e.dataTransfer.setData("orderId", orderId);
+    setDraggedOrderId(orderId);
+  };
+  
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, newStatus: OrderStatus) => {
+    const orderId = e.dataTransfer.getData("orderId");
+    handleStatusChange(orderId, newStatus);
+    setDraggedOrderId(null);
+  };
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      const snapshot = await getDocs(collection(db, "ordens"));
-      const fetched = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as Order[];
-      setOrders(fetched);
-    };
-    fetchOrders();
+  const handleDragEnd = () => {
+    setDraggedOrderId(null);
+  };
+
+  const handleSelectOrder = (order: ServiceOrder) => {
+    if (currentUser?.role !== UserRole.Viewer) {
+      onSelectOrder(order);
+    }
+  }
+
+  const checkScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (el) {
+      const buffer = 5; // buffer for floating point inaccuracies
+      const { scrollLeft, scrollWidth, clientWidth } = el;
+      setShowLeftArrow(scrollLeft > buffer);
+      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - buffer);
+    }
   }, []);
 
-  const handleStatusChange = async (id: string, newStatus: string) => {
-    await updateDoc(doc(db, "ordens", id), { status: newStatus });
-    setOrders((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o))
-    );
-  };
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (el) {
+      checkScroll();
+      el.addEventListener('scroll', checkScroll, { passive: true });
+      window.addEventListener('resize', checkScroll);
+    }
+    return () => {
+      if (el) {
+        el.removeEventListener('scroll', checkScroll);
+        window.removeEventListener('resize', checkScroll);
+      }
+    };
+  }, [filteredOrders, checkScroll]);
+  
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
 
-  const exportToPDF = () => {
-    const pdf = new jsPDF();
-    pdf.text("Relatório de Ordens de Serviço", 14, 20);
-    (pdf as any).autoTable({
-      startY: 30,
-      head: [["Cliente", "Descrição", "Status"]],
-      body: orders.map((o) => [o.cliente, o.descricao, o.status]),
-    });
-    pdf.save("ordens.pdf");
-  };
+    const handleWheel = (e: WheelEvent) => {
+      // Check if the user is scrolling vertically
+      if (e.deltaY !== 0 && Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
+        // Prevent the default vertical scroll behavior
+        e.preventDefault();
+        // Scroll the container horizontally instead
+        container.scrollLeft += e.deltaY;
+      }
+    };
 
-  const grouped = {
-    Aberta: orders.filter((o) => o.status === "Aberta"),
-    "Em Progresso": orders.filter((o) => o.status === "Em Progresso"),
-    Concluída: orders.filter((o) => o.status === "Concluída"),
-  };
+    container.addEventListener('wheel', handleWheel, { passive: false });
 
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
+
+
+  const handleScroll = (direction: 'left' | 'right') => {
+    const el = scrollContainerRef.current;
+    if (el) {
+      const scrollAmount = direction === 'left' ? -344 : 344; // 320px column + 24px gap
+      el.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
+  
   return (
-    <div className="p-6 bg-coal-black min-h-screen text-white">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-cadmium-yellow">
-          Painel Kanban
-        </h1>
-        <button
-          onClick={exportToPDF}
-          className="bg-cadmium-yellow text-black px-4 py-2 rounded-md font-semibold hover:opacity-90"
-        >
-          Exportar PDF
-        </button>
+    <div className="flex flex-col h-full gap-4">
+      <div className="flex-shrink-0 px-1">
+        <KanbanFilterPanel />
       </div>
-
-      <div className="grid grid-cols-3 gap-6">
-        {Object.entries(grouped).map(([status, items]) => (
-          <div
-            key={status}
-            className="bg-black/40 rounded-lg p-4 border border-gray-700"
+      <div className="relative flex-1 -mx-6">
+        {showLeftArrow && (
+          <button
+            onClick={() => handleScroll('left')}
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 p-2 bg-coal-black/80 rounded-full border border-granite-gray/50 text-white hover:bg-cadmium-yellow hover:text-coal-black transition-all shadow-lg"
+            aria-label="Rolar para a esquerda"
           >
-            <h2 className="text-xl font-semibold text-cadmium-yellow mb-4">
-              {status}
-            </h2>
-            {items.map((order) => (
-              <div
-                key={order.id}
-                onClick={() =>
-                  handleStatusChange(
-                    order.id,
-                    order.status === "Aberta"
-                      ? "Em Progresso"
-                      : order.status === "Em Progresso"
-                      ? "Concluída"
-                      : "Aberta"
-                  )
-                }
-                className="bg-coal-black p-3 rounded-md mb-3 shadow-md cursor-pointer hover:bg-gray-800"
-              >
-                <h3 className="text-lg font-bold">{order.cliente}</h3>
-                <p className="text-gray-400">{order.descricao}</p>
-              </div>
-            ))}
-          </div>
-        ))}
+            <ChevronLeft size={24} />
+          </button>
+        )}
+        <div
+          ref={scrollContainerRef}
+          className="kanban-container flex space-x-6 h-full px-6"
+        >
+          {kanbanColumns.filter(c => c.status !== 'Entregue').map(column => (
+            <KanbanColumn
+              key={column.status}
+              column={column}
+              orders={filteredOrders.filter(order => order.status === column.status)}
+              onDrop={handleDrop}
+              onDragStart={handleDragStart}
+              onSelectOrder={handleSelectOrder}
+              draggedOrderId={draggedOrderId}
+              onDragEnd={handleDragEnd}
+            />
+          ))}
+        </div>
+        {showRightArrow && (
+          <button
+            onClick={() => handleScroll('right')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 p-2 bg-coal-black/80 rounded-full border border-granite-gray/50 text-white hover:bg-cadmium-yellow hover:text-coal-black transition-all shadow-lg"
+            aria-label="Rolar para a direita"
+          >
+            <ChevronRight size={24} />
+          </button>
+        )}
       </div>
     </div>
   );

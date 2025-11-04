@@ -15,13 +15,13 @@ export const GalleryCard: React.FC<GalleryCardProps> = ({ order, onSelect }) => 
   return (
     <div
       onClick={() => onSelect(order)}
-      className="bg-granite-gray/20 rounded-lg overflow-hidden group cursor-pointer border-2 border-transparent hover:border-cadmium-yellow/70 transition-all duration-300 transform hover:-translate-y-1"
+      className="bg-granite-gray/20 rounded-lg overflow-hidden group cursor-pointer border-2 border-transparent hover:border-cadmium-yellow/70 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-xl hover:shadow-cadmium-yellow/20"
     >
       <div className="aspect-video overflow-hidden">
         <img 
           src={order.thumbnailUrl} 
           alt={order.description} 
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-in-out"
         />
       </div>
       <div className="p-4 text-white/90">

@@ -1,8 +1,7 @@
 import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { useAppContext } from './AppContext';
-import { ServiceOrder, OrderStatus } from '../types';
-import { ChevronLeft, ChevronRight, ChevronDown, Filter, X, Plus, Minus } from 'lucide-react';
-import { KANBAN_COLUMNS } from '../constants';
+import { ServiceOrder, OrderStatus, KanbanColumn } from '../types';
+import { ChevronLeft, ChevronRight, ChevronDown, Filter, X, Plus, Minus, Calendar, StickyNote } from 'lucide-react';
 
 interface TimelinePageProps {
   onSelectOrder: (order: ServiceOrder) => void;
@@ -11,24 +10,39 @@ interface TimelinePageProps {
 type ZoomLevel = 'weeks' | 'days' | 'hours';
 type HourlyZoomLevel = 24 | 12 | 6;
 
-const ROW_HEIGHT = 38;
+const ROW_HEIGHT = 50; // Increased height for notes
 const GROUP_HEADER_ROW_HEIGHT = 38;
 const HEADER_HEIGHT = 50;
 const SIDEBAR_WIDTH = 220;
 
-const statusColors: Record<OrderStatus, { bg: string, border: string, dot: string }> = {
-    [OrderStatus.Waiting]:      { bg: 'bg-blue-500/30',      border: 'border-blue-500', dot: 'bg-blue-400' },
-    [OrderStatus.Shooting]:     { bg: 'bg-orange-500/30',    border: 'border-orange-500', dot: 'bg-orange-400' },
-    [OrderStatus.Development]:  { bg: 'bg-yellow-500/30',    border: 'border-yellow-500', dot: 'bg-yellow-400' },
-    [OrderStatus.PostProduction]: { bg: 'bg-yellow-400/30',    border: 'border-yellow-400', dot: 'bg-yellow-300' },
-    [OrderStatus.ColorGrading]: { bg: 'bg-purple-500/30',    border: 'border-purple-500', dot: 'bg-purple-400' },
-    [OrderStatus.Approval]:     { bg: 'bg-red-500/30',       border: 'border-red-500', dot: 'bg-red-400' },
-    [OrderStatus.Delivered]:    { bg: 'bg-green-500/30',     border: 'border-green-500', dot: 'bg-green-400' },
+type StatusColorMap = Record<OrderStatus, { bg: string, border: string, dot: string }>;
+
+const generateStatusColors = (kanbanColumns: KanbanColumn[]): StatusColorMap => {
+    const colorMap: Partial<StatusColorMap> = {};
+    kanbanColumns.forEach(column => {
+        // A simple hashing function to create slight variations for bg/border/dot from a single source color
+        const hash = column.color.split('').reduce((acc, char) => char.charCodeAt(0) + ((acc << 5) - acc), 0);
+        const h = (hash % 360 + 360) % 360; // Ensure hue is positive
+        const s = 60 + (Math.abs(hash) % 20); // Saturation between 60-80
+        const l_bg = 25; // Lightness for background
+        const l_border = 45; // Lightness for border
+        const l_dot = 55; // Lightness for dot
+
+        colorMap[column.status] = {
+            bg: `hsl(${h}, ${s}%, ${l_bg}%)`,
+            border: `hsl(${h}, ${s}%, ${l_border}%)`,
+            dot: column.color, // Use the direct color for the dot
+        }
+    });
+    return colorMap as StatusColorMap;
 };
 
-const getDeadlineIndicatorClasses = (order: ServiceOrder): { border: string, pulse: string } => {
-    if (order.status === OrderStatus.Delivered || !order.expectedDeliveryDate) {
-        return { border: statusColors[order.status]?.border || 'border-gray-500', pulse: '' };
+const getDeadlineIndicatorClasses = (order: ServiceOrder, statusColors: StatusColorMap): { border: string, pulse: string, bg: string } => {
+    const defaultBorder = statusColors[order.status]?.border || '#6b7280';
+    const defaultBg = statusColors[order.status]?.bg || 'hsl(240, 4%, 20%)';
+    
+    if (order.status === 'Entregue' || !order.expectedDeliveryDate) {
+        return { border: defaultBorder, pulse: '', bg: defaultBg };
     }
     const now = new Date();
     now.setHours(0, 0, 0, 0);
@@ -36,10 +50,19 @@ const getDeadlineIndicatorClasses = (order: ServiceOrder): { border: string, pul
     deadline.setHours(0, 0, 0, 0);
     const diffTime = deadline.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays < 0) return { border: 'border-red-500', pulse: 'deadline-pulse-overdue' };
-    if (diffDays <= 2) return { border: 'border-yellow-400', pulse: 'deadline-pulse-warning' };
-    return { border: statusColors[order.status]?.border || 'border-gray-500', pulse: '' };
+    
+    if (diffDays < 0) {
+        // Overdue: Red
+        return { border: '#ef4444', pulse: 'deadline-pulse-overdue', bg: 'hsl(0, 50%, 28%)' };
+    }
+    if (diffDays <= 2) {
+        // Warning: Yellow
+        return { border: '#eab308', pulse: 'deadline-pulse-warning', bg: 'hsl(45, 70%, 22%)' };
+    }
+    // Default
+    return { border: defaultBorder, pulse: '', bg: defaultBg };
 };
+
 
 const dateDiffInUnits = (d1: Date, d2: Date, unit: ZoomLevel): number => {
     const t2 = d2.getTime();
@@ -71,42 +94,50 @@ const formatTooltipDate = (dateString: string | undefined): string => {
 const formatDuration = (start: string, end: string | undefined): string => {
     if (!end) return 'N/A';
     const diffMs = new Date(end).getTime() - new Date(start).getTime();
-    const totalMinutes = Math.floor(diffMs / (1000 * 60));
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    return `${hours}h ${minutes}min`;
+    const totalDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return `${totalDays} dia(s)`;
 };
 
 export const TimelinePage: React.FC<TimelinePageProps> = ({ onSelectOrder }) => {
-    const { orders } = useAppContext();
+    const { orders, kanbanColumns, updateOrder } = useAppContext();
     const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('days');
     const [hourlyZoomLevel, setHourlyZoomLevel] = useState<HourlyZoomLevel>(24);
     const [collapsedClients, setCollapsedClients] = useState<Set<string>>(new Set());
     const timelineContainerRef = useRef<HTMLDivElement>(null);
+    const sidebarRef = useRef<HTMLDivElement>(null);
     const [tooltipData, setTooltipData] = useState<{ order: ServiceOrder; x: number; y: number } | null>(null);
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
+    const [noteTooltip, setNoteTooltip] = useState<{ content: string; x: number; y: number } | null>(null);
     const [selectedResponsible, setSelectedResponsible] = useState<string>('all');
     const [selectedStatus, setSelectedStatus] = useState<string>('all');
     const [visibleDateRange, setVisibleDateRange] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date());
+    
+    const statusColors = useMemo(() => generateStatusColors(kanbanColumns), [kanbanColumns]);
 
     const isFilterActive = selectedResponsible !== 'all' || selectedStatus !== 'all';
 
     const unitWidth = useMemo(() => {
         if (zoomLevel === 'hours') {
-            const containerWidth = timelineContainerRef.current?.offsetWidth || window.innerWidth - SIDEBAR_WIDTH;
-            return containerWidth / hourlyZoomLevel;
+            return (window.innerWidth - SIDEBAR_WIDTH) / hourlyZoomLevel;
         }
         return zoomLevel === 'weeks' ? 200 : 60;
-    }, [zoomLevel, hourlyZoomLevel, timelineContainerRef.current?.offsetWidth]);
+    }, [zoomLevel, hourlyZoomLevel]);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 60000); // Update every minute
         return () => clearInterval(timer);
     }, []);
 
-    const responsibleList = useMemo(() => ['all', ...Array.from(new Set(orders.map(o => o.responsible).filter(Boolean)))], [orders]);
-    const statusList = useMemo(() => ['all', ...KANBAN_COLUMNS.map(c => c.status)], []);
+    const responsibleList = useMemo(() => {
+        const responsibleNames = orders
+            .map(o => o.responsible)
+            .filter((r): r is string => !!r);
+        const uniqueNames = Array.from(new Set(responsibleNames)).sort();
+        return ['all', ...uniqueNames];
+    }, [orders]);
+    
+    const statusList = useMemo(() => ['all', ...kanbanColumns.map(c => c.status)], [kanbanColumns]);
 
     const clearFilters = () => {
         setSelectedResponsible('all');
@@ -123,255 +154,308 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({ onSelectOrder }) => 
         setTimeout(() => setTooltipData(null), 200);
     }, []);
 
-    const toggleClientCollapse = (client: string) => setCollapsedClients(prev => {
-        const newSet = new Set(prev);
-        newSet.has(client) ? newSet.delete(client) : newSet.add(client);
-        return newSet;
-    });
-
-    const filteredAndGroupedOrders = useMemo(() => {
-        const filtered = orders.filter(order =>
-            (selectedResponsible === 'all' || order.responsible === selectedResponsible) &&
-            (selectedStatus === 'all' || order.status === selectedStatus)
-        );
-        return filtered.filter(o => o.creationDate).reduce((acc, order) => {
-            const client = order.client || 'Sem Cliente';
-            if (!acc.has(client)) acc.set(client, []);
-            acc.get(client)!.push(order);
-            return acc;
-        }, new Map<string, ServiceOrder[]>());
-    }, [orders, selectedResponsible, selectedStatus]);
-
-    const { startDate, totalUnits } = useMemo(() => {
-        const allOrders = Array.from(filteredAndGroupedOrders.values()).flat();
-        let minDate: Date, maxDate: Date;
-
-        if (allOrders.length === 0) {
-            const today = new Date();
-            minDate = addUnits(today, -2, 'weeks');
-            maxDate = addUnits(today, 4, 'weeks');
-        } else {
-            minDate = new Date((allOrders[0] as ServiceOrder).creationDate);
-            maxDate = addUnits(new Date((allOrders[0] as ServiceOrder).creationDate), 1, 'days');
-            allOrders.forEach((order: ServiceOrder) => {
-                const createDate = new Date(order.creationDate);
-                if (createDate < minDate) minDate = createDate;
-                const endDate = order.expectedDeliveryDate ? new Date(order.expectedDeliveryDate) : addUnits(createDate, 7, 'days');
-                if (endDate > maxDate) maxDate = endDate;
-            });
-        }
-        if (zoomLevel !== 'hours') { minDate.setHours(0,0,0,0); maxDate.setHours(23,59,59,999); }
-        const buffer = zoomLevel === 'weeks' ? 2 : zoomLevel === 'days' ? 7 : 48;
-        const finalStartDate = addUnits(minDate, -buffer, zoomLevel === 'hours' ? 'hours' : 'days');
-        const finalEndDate = addUnits(maxDate, buffer, zoomLevel === 'hours' ? 'hours' : 'days');
-        let total = Math.ceil(dateDiffInUnits(finalStartDate, finalEndDate, zoomLevel));
-        if (zoomLevel === 'weeks') total = Math.ceil(dateDiffInUnits(finalStartDate, finalEndDate, 'days')/7);
-        return { startDate: finalStartDate, totalUnits: total };
-    }, [filteredAndGroupedOrders, zoomLevel]);
-
-    const nowOffset = dateDiffInUnits(startDate, new Date(), zoomLevel);
-    const nowTimeOffset = dateDiffInUnits(startDate, currentTime, 'hours');
-    
-    useEffect(() => {
-        const el = timelineContainerRef.current;
-        if (!el) return;
-        const scrollPos = (nowOffset * unitWidth) - (el.offsetWidth / 2);
-        el.scrollTo({ left: scrollPos, behavior: 'auto' });
-    }, [startDate, zoomLevel, unitWidth]);
-
-    const handleNavigateTime = (direction: 'prev' | 'next') => {
-        const el = timelineContainerRef.current;
-        if (!el) return;
-        const multiplier = direction === 'prev' ? -1 : 1;
-        const scrollAmount = zoomLevel === 'weeks' ? unitWidth * 2 : unitWidth * 7;
-        el.scrollBy({ left: scrollAmount * multiplier, behavior: 'smooth' });
-    };
-
-    const updateVisibleDateRange = useCallback(() => {
-        if (!timelineContainerRef.current) return;
-        const { scrollLeft, offsetWidth } = timelineContainerRef.current;
-        const startUnitIndex = Math.floor(scrollLeft / unitWidth);
-        const endUnitIndex = Math.floor((scrollLeft + offsetWidth) / unitWidth);
-        
-        const visibleStartDate = addUnits(startDate, startUnitIndex, zoomLevel);
-        const visibleEndDate = addUnits(startDate, endUnitIndex, zoomLevel);
-        
-        const format = (d: Date) => d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
-        setVisibleDateRange(`${format(visibleStartDate)} – ${format(visibleEndDate)}`);
-    }, [startDate, zoomLevel, unitWidth]);
-
-    useEffect(() => {
-        const el = timelineContainerRef.current;
-        if (!el) return;
-        updateVisibleDateRange();
-        el.addEventListener('scroll', updateVisibleDateRange);
-        return () => el.removeEventListener('scroll', updateVisibleDateRange);
-    }, [updateVisibleDateRange]);
-
-
-    const renderHeaderUnits = () => {
-        const units = [];
-        let currentDate = new Date(startDate);
-        for (let i = 0; i < totalUnits; i++) {
-            units.push(new Date(currentDate));
-            currentDate = addUnits(currentDate, 1, zoomLevel);
-        }
-        return units.map((unit, index) => {
-            let label, subLabel;
-            if (zoomLevel === 'weeks') {
-                const weekEnd = addUnits(unit, 6, 'days');
-                label = `${unit.getDate()} ${unit.toLocaleString('pt-BR', { month: 'short' })}`;
-                subLabel = `${weekEnd.getDate()} ${weekEnd.toLocaleString('pt-BR', { month: 'short' })}`;
-            } else if (zoomLevel === 'days') {
-                label = unit.getDate();
-                subLabel = unit.toLocaleDateString('pt-BR', { weekday: 'short' });
-            } else { // hours
-                label = `${String(unit.getHours()).padStart(2, '0')}:00`;
-                subLabel = unit.getHours() === 0 ? unit.toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'}) : null;
+    const toggleClientCollapse = (client: string) => {
+        setCollapsedClients(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(client)) {
+                newSet.delete(client);
+            } else {
+                newSet.add(client);
             }
-            return (
-                <div key={index} style={{ width: `${unitWidth}px` }} className="flex-shrink-0 text-center border-r border-gray-700/30 snap-start">
-                    <div className="text-xs text-granite-gray-light capitalize h-5">{subLabel}</div>
-                    <div className="font-bold text-lg">{label}</div>
-                </div>
-            )
+            return newSet;
         });
     };
-    
-    const clientArray = Array.from(filteredAndGroupedOrders.keys());
-    const timelineRows: {type: 'group' | 'order', data: ServiceOrder | string, clientSummary?: {start: Date, end: Date}}[] = [];
-    clientArray.forEach(client => {
-        const orders = filteredAndGroupedOrders.get(client) || [];
-        let groupStart: Date | null = null, groupEnd: Date | null = null;
-        if (orders.length > 0) {
-            groupStart = orders.reduce((min, o: ServiceOrder) => new Date(o.creationDate) < min ? new Date(o.creationDate) : min, new Date(orders[0].creationDate));
-            groupEnd = orders.reduce((max, o: ServiceOrder) => {
-                const endDate = o.expectedDeliveryDate ? new Date(o.expectedDeliveryDate) : addUnits(new Date(o.creationDate), 7, 'days');
-                return endDate > max ? endDate : max;
-            }, orders[0].expectedDeliveryDate ? new Date(orders[0].expectedDeliveryDate) : addUnits(new Date(orders[0].creationDate), 7, 'days'));
+
+    const handleNoteChange = (order: ServiceOrder, newText: string) => {
+        if (order.notes === newText) return;
+        const updatedOrder = { ...order, notes: newText };
+        updateOrder(updatedOrder);
+    };
+
+    const filteredAndGroupedOrders = useMemo(() => {
+        const filtered = orders.filter(order => {
+            if (selectedResponsible !== 'all' && order.responsible !== selectedResponsible) return false;
+            if (selectedStatus !== 'all' && order.status !== selectedStatus) return false;
+            return true;
+        });
+
+        // FIX: Replaced reduce with a standard for...of loop to ensure correct type inference for the 'grouped' object.
+        const grouped: Record<string, ServiceOrder[]> = {};
+        for (const order of filtered) {
+            const clientName = order.client;
+            if (!grouped[clientName]) {
+                grouped[clientName] = [];
+            }
+            grouped[clientName].push(order);
         }
-        timelineRows.push({ type: 'group', data: client, clientSummary: groupStart && groupEnd ? {start: groupStart, end: groupEnd} : undefined });
-        if (!collapsedClients.has(client)) {
-            // FIX: Explicitly typed the 'order' parameter as ServiceOrder to resolve TypeScript error where it was being inferred as 'unknown'.
-            orders.forEach((order: ServiceOrder) => timelineRows.push({ type: 'order', data: order }));
+        
+        // This comment seems to be from a previous fix, keeping it for context.
+        // FIX: Sort orders within each group immutably and then sort groups by client name.
+        // This avoids mutation inside useMemo and fixes the potential type error.
+        return Object.entries(grouped)
+            .map(([client, clientOrders]) => {
+                const sortedOrders = [...clientOrders].sort((a, b) => new Date(a.creationDate).getTime() - new Date(b.creationDate).getTime());
+                return [client, sortedOrders] as [string, ServiceOrder[]];
+            })
+            .sort((a, b) => a[0].localeCompare(b[0]));
+    }, [orders, selectedResponsible, selectedStatus]);
+
+    const [startDate, endDate] = useMemo(() => {
+        if (orders.length === 0) {
+            const today = new Date();
+            const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            return [startOfMonth, endOfMonth];
         }
-    });
+        let min = new Date();
+        let max = new Date(0);
+        orders.forEach(o => {
+            const start = new Date(o.creationDate);
+            const end = new Date(o.expectedDeliveryDate || o.lastStatusUpdate);
+            if (start < min) min = start;
+            if (end > max) max = end;
+        });
+        
+        min.setDate(min.getDate() - 14);
+        max.setDate(max.getDate() + 28);
+        return [min, max];
+    }, [orders]);
+
+    const totalWidth = dateDiffInUnits(startDate, endDate, zoomLevel) * unitWidth;
+
+    const timelineHeaders = useMemo(() => {
+        const headers: { date: Date, label: string }[] = [];
+        let current = new Date(startDate);
+        current.setHours(0,0,0,0);
+        
+        while (current <= endDate) {
+            if (zoomLevel === 'weeks') {
+                headers.push({ date: new Date(current), label: current.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) });
+                current.setDate(current.getDate() + 7);
+            } else {
+                headers.push({ date: new Date(current), label: current.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) });
+                current.setDate(current.getDate() + 1);
+            }
+        }
+        return headers;
+    }, [startDate, endDate, zoomLevel]);
+
+    const scrollToToday = useCallback(() => {
+        if (timelineContainerRef.current) {
+            const offset = dateDiffInUnits(startDate, new Date(), zoomLevel) * unitWidth;
+            const containerWidth = timelineContainerRef.current.offsetWidth;
+            timelineContainerRef.current.scrollLeft = offset - containerWidth / 3;
+        }
+    }, [startDate, zoomLevel, unitWidth]);
+
+    useEffect(() => {
+        scrollToToday();
+        const handleScroll = () => {
+            if(sidebarRef.current && timelineContainerRef.current) {
+                sidebarRef.current.scrollTop = timelineContainerRef.current.scrollTop;
+            }
+        };
+        const container = timelineContainerRef.current;
+        container?.addEventListener('scroll', handleScroll);
+        return () => container?.removeEventListener('scroll', handleScroll);
+    }, [scrollToToday]);
+
+    useEffect(() => {
+        const container = timelineContainerRef.current;
+        if (!container) return;
+
+        const handleWheel = (e: WheelEvent) => {
+            if (e.deltaY !== 0 && Math.abs(e.deltaX) < Math.abs(e.deltaY)) {
+                e.preventDefault();
+                container.scrollLeft += e.deltaY;
+            }
+        };
+
+        container.addEventListener('wheel', handleWheel, { passive: false });
+
+        return () => {
+            container.removeEventListener('wheel', handleWheel);
+        };
+    }, []);
     
-    const ViewSwitcherButton: React.FC<{level: ZoomLevel, label: string}> = ({ level, label }) => (
-        <button onClick={() => setZoomLevel(level)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ${zoomLevel === level ? 'bg-cadmium-yellow text-coal-black' : 'bg-black/30 hover:bg-gray-700 text-gray-300'}`}>
-            {label}
-        </button>
-    );
+    const nowPosition = dateDiffInUnits(startDate, currentTime, zoomLevel) * unitWidth;
 
     return (
-        <>
-            <div className="h-full flex flex-col text-white bg-black/20 rounded-lg border border-granite-gray/20 p-4 gap-2">
-                <header className="flex-shrink-0 flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                        <button onClick={() => handleNavigateTime('prev')} className="p-2 rounded-lg bg-black/30 hover:bg-gray-700 text-gray-300"><ChevronLeft size={20}/></button>
-                        <span className="font-semibold text-gray-300 text-sm w-48 text-center">{visibleDateRange}</span>
-                        <button onClick={() => handleNavigateTime('next')} className="p-2 rounded-lg bg-black/30 hover:bg-gray-700 text-gray-300"><ChevronRight size={20}/></button>
-                        <div className="flex items-center gap-1 p-1 bg-black/20 rounded-lg ml-4">
-                            <ViewSwitcherButton level="weeks" label="Semanas" />
-                            <ViewSwitcherButton level="days" label="Dias" />
-                            <ViewSwitcherButton level="hours" label="Horas" />
-                        </div>
-                        {zoomLevel === 'hours' && (
-                            <div className="flex items-center gap-1 p-1 bg-black/20 rounded-lg ml-2">
-                                <button onClick={() => setHourlyZoomLevel(24)} className={`px-3 py-1 text-xs rounded ${hourlyZoomLevel === 24 ? 'bg-gray-600' : 'hover:bg-gray-700'}`}>24h</button>
-                                <button onClick={() => setHourlyZoomLevel(12)} className={`px-3 py-1 text-xs rounded ${hourlyZoomLevel === 12 ? 'bg-gray-600' : 'hover:bg-gray-700'}`}>12h</button>
-                                <button onClick={() => setHourlyZoomLevel(6)} className={`px-3 py-1 text-xs rounded ${hourlyZoomLevel === 6 ? 'bg-gray-600' : 'hover:bg-gray-700'}`}>6h</button>
+      <div className="flex flex-col h-full bg-black/20 rounded-lg border border-granite-gray/20 text-white overflow-hidden animate-fadeIn">
+          {/* Toolbar */}
+          <div className="flex-shrink-0 flex items-center justify-between p-3 border-b border-granite-gray/20 bg-coal-black">
+              <div className="flex items-center gap-2">
+                  <button onClick={scrollToToday} className="flex items-center px-3 py-1.5 bg-granite-gray/20 rounded-lg text-sm font-semibold text-gray-300 hover:bg-granite-gray/40 transition-colors"><Calendar size={16} className="mr-2"/>Hoje</button>
+              </div>
+              <div className="flex items-center gap-4">
+                  {isFilterActive && (
+                      <button onClick={clearFilters} className="flex items-center gap-2 text-sm text-yellow-300 hover:text-white"><X size={14}/>Limpar Filtros</button>
+                  )}
+                  <select value={selectedResponsible} onChange={e => setSelectedResponsible(e.target.value)} className="bg-black/30 border border-granite-gray/50 rounded-lg px-2 py-1 text-sm">
+                      {responsibleList.map(r => <option key={r} value={r}>{r === 'all' ? 'Todos Responsáveis' : r}</option>)}
+                  </select>
+                  <select value={selectedStatus} onChange={e => setSelectedStatus(e.target.value)} className="bg-black/30 border border-granite-gray/50 rounded-lg px-2 py-1 text-sm">
+                      {statusList.map(s => {
+                          const column = kanbanColumns.find(c => c.status === s);
+                          return <option key={s} value={s}>{s === 'all' ? 'Todos os Status' : column?.title || s}</option>
+                      })}
+                  </select>
+              </div>
+              <div className="flex items-center gap-2">
+                 <button onClick={() => setZoomLevel('weeks')} className={`px-3 py-1 text-sm font-semibold rounded ${zoomLevel === 'weeks' ? 'bg-cadmium-yellow text-coal-black' : 'bg-granite-gray/20'}`}>Semanas</button>
+                 <button onClick={() => setZoomLevel('days')} className={`px-3 py-1 text-sm font-semibold rounded ${zoomLevel === 'days' ? 'bg-cadmium-yellow text-coal-black' : 'bg-granite-gray/20'}`}>Dias</button>
+              </div>
+          </div>
+          
+          {/* Main Content */}
+          <div className="flex-1 flex overflow-hidden">
+              {/* Sidebar */}
+              <div ref={sidebarRef} className="w-[220px] flex-shrink-0 bg-black/20 overflow-hidden border-r border-granite-gray/20">
+                  <div className="h-[50px] flex items-center p-2 font-bold text-gray-400 border-b-2 border-granite-gray/20 bg-coal-black sticky top-0 z-30">Cliente / OS</div>
+                  <div style={{height: `${(filteredAndGroupedOrders.reduce((acc, [, orders]) => acc + (collapsedClients.has(orders[0]?.client) ? 0 : orders.length), 0) * ROW_HEIGHT) + (filteredAndGroupedOrders.length * GROUP_HEADER_ROW_HEIGHT)}px`}}>
+                    {filteredAndGroupedOrders.map(([client, clientOrders]) => (
+                        <div key={client}>
+                            <div onClick={() => toggleClientCollapse(client)} style={{ height: `${GROUP_HEADER_ROW_HEIGHT}px`}} className="flex items-center p-2 bg-granite-gray/10 cursor-pointer hover:bg-granite-gray/20 font-semibold border-b border-t border-granite-gray/10">
+                                <ChevronDown size={16} className={`mr-2 transition-transform ${collapsedClients.has(client) ? '-rotate-90' : ''}`}/>
+                                <span className="truncate">{client}</span>
                             </div>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="relative">
-                            <select value={selectedResponsible} onChange={e => setSelectedResponsible(e.target.value)} className="appearance-none text-sm bg-black/30 border border-granite-gray/50 rounded-lg pl-3 pr-8 py-1.5 text-gray-300 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow">
-                                {responsibleList.map(r => <option key={r} value={r}>{r === 'all' ? 'Todos Responsáveis' : r}</option>)}
-                            </select>
-                            <ChevronDown size={16} className="absolute right-2 top-1/2 -translate-y-1/2 text-granite-gray pointer-events-none" />
+                            {!collapsedClients.has(client) && clientOrders.map(order => (
+                                <div key={order.id} style={{ height: `${ROW_HEIGHT}px`}} className="group flex flex-col justify-center p-2 text-sm text-gray-300 border-b border-granite-gray/10 hover:bg-cadmium-yellow/10">
+                                    <div 
+                                        onClick={() => onSelectOrder(order)}
+                                        className="flex items-center cursor-pointer"
+                                    >
+                                        <div className="w-2 h-2 rounded-full mr-2 flex-shrink-0" style={{ backgroundColor: statusColors[order.status]?.dot || '#808080' }}></div>
+                                        <span className="truncate font-semibold">{order.orderNumber}</span>
+                                        {order.notes && (
+                                            <StickyNote
+                                                size={14}
+                                                className="ml-2 text-granite-gray-light flex-shrink-0"
+                                                onMouseEnter={(e) => {
+                                                    e.stopPropagation();
+                                                    setNoteTooltip({ content: order.notes!, x: e.clientX, y: e.clientY });
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.stopPropagation();
+                                                    setNoteTooltip(null);
+                                                }}
+                                            />
+                                        )}
+                                    </div>
+                                    <input 
+                                        type="text"
+                                        defaultValue={order.notes || ''}
+                                        onBlur={(e) => handleNoteChange(order, e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                                        placeholder="Adicionar nota rápida..."
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="w-full bg-transparent text-xs text-granite-gray-light placeholder-granite-gray/70 border-none p-0 focus:ring-0 focus:bg-black/20 focus:text-white rounded -mx-1 px-1"
+                                    />
+                                </div>
+                            ))}
                         </div>
-                        <div className="relative">
-                            <select value={selectedStatus} onChange={e => setSelectedStatus(e.target.value)} className="appearance-none text-sm bg-black/30 border border-granite-gray/50 rounded-lg pl-3 pr-8 py-1.5 text-gray-300 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow">
-                                {statusList.map(s => <option key={s} value={s}>{s === 'all' ? 'Todos Status' : s}</option>)}
-                            </select>
-                            <ChevronDown size={16} className="absolute right-2 top-1/2 -translate-y-1/2 text-granite-gray pointer-events-none" />
-                        </div>
-                        {isFilterActive && <button onClick={clearFilters} className="p-2 rounded-lg bg-black/30 hover:bg-gray-700 text-granite-gray-light hover:text-white" title="Limpar Filtros"><X size={16}/></button>}
-                    </div>
-                </header>
-                <main ref={timelineContainerRef} className="flex-1 flex overflow-auto snap-x snap-mandatory">
-                    <div className="sticky left-0 z-20 bg-[#181818] shadow-lg" style={{ width: `${SIDEBAR_WIDTH}px`}}>
-                        <div style={{ height: `${HEADER_HEIGHT}px` }} className="flex items-center font-semibold text-gray-400 border-b border-r border-gray-700/30">
-                            <span className="pl-4">Clientes</span>
-                        </div>
-                        {timelineRows.map((row, index) => {
-                             if (row.type === 'group') {
-                                 return (<div key={`client-${index}`} onClick={() => toggleClientCollapse(row.data as string)} style={{ height: `${GROUP_HEADER_ROW_HEIGHT}px`}} className="flex items-center pl-4 border-b border-r border-gray-700/30 text-sm font-medium text-gray-200 truncate cursor-pointer hover:bg-gray-800" title={row.data as string}>
-                                     <ChevronDown size={16} className={`mr-2 transition-transform ${collapsedClients.has(row.data as string) ? '-rotate-90' : ''}`} />{row.data as string}</div>)
-                             }
-                             return <div key={`order-row-${index}`} style={{ height: `${ROW_HEIGHT}px` }} className="flex items-center pl-8 border-b border-r border-gray-700/30 text-xs text-granite-gray-light truncate" title={(row.data as ServiceOrder).description}>{(row.data as ServiceOrder).orderNumber}</div>
-                        })}
-                    </div>
-                    <div className="relative" style={{ width: `${totalUnits * unitWidth}px` }}>
-                        <div className="sticky top-0 z-10 flex bg-[#181818]/80 backdrop-blur-sm border-b border-gray-700/30" style={{ height: `${HEADER_HEIGHT}px` }}>{renderHeaderUnits()}</div>
-                        {[...Array(totalUnits)].map((_, index) => <div key={`col-${index}`} className="absolute top-0 bottom-0 border-r border-gray-700/30" style={{ left: `${(index + 1) * unitWidth}px` }}></div>)}
-                        {zoomLevel === 'hours' && [...Array(Math.floor(totalUnits / 4))].map((_, index) => <div key={`band-${index}`} className="absolute top-0 bottom-0 bg-white/5" style={{ left: `${index * 4 * unitWidth}px`, width: `${4 * unitWidth}px` }}></div>)}
-                        {timelineRows.map((row, index) => <div key={`row-${index}`} className="absolute left-0 right-0 border-b border-gray-700/30" style={{ top: `${HEADER_HEIGHT + index * (row.type === 'group' ? GROUP_HEADER_ROW_HEIGHT : ROW_HEIGHT)}px`, height: `${(row.type === 'group' ? GROUP_HEADER_ROW_HEIGHT : ROW_HEIGHT)}px` }}></div>)}
-                        {nowOffset >= 0 && nowOffset < totalUnits && zoomLevel !== 'hours' && (<div className="absolute top-0 bottom-0 z-10" style={{ left: `${nowOffset * unitWidth}px` }}><div className="w-0.5 h-full bg-cadmium-yellow"></div><div className="absolute top-0 -translate-x-1/2 px-1.5 py-0.5 text-xs font-bold text-coal-black bg-cadmium-yellow rounded-full">Hoje</div></div>)}
-                        {zoomLevel === 'hours' && (<div className="absolute top-0 bottom-0 z-10 border-l-2 border-[#DCFF00]" style={{ left: `${nowTimeOffset * unitWidth}px` }}></div>)}
+                    ))}
+                  </div>
+              </div>
 
-                        {timelineRows.map((row, index) => {
-                            let bar;
-                            let barHeight = ROW_HEIGHT - 8;
-                            let topOffset = 4;
-                            if (row.type === 'group' && row.clientSummary) {
-                                const {start, end} = row.clientSummary;
-                                bar = { startOffset: dateDiffInUnits(startDate, start, zoomLevel), duration: Math.max(0.02, dateDiffInUnits(start, end, zoomLevel)) };
-                                barHeight = 8; topOffset = (GROUP_HEADER_ROW_HEIGHT - barHeight) / 2;
-                            } else if (row.type === 'order') {
-                                const order = row.data as ServiceOrder;
-                                const orderStart = new Date(order.creationDate);
-                                const defaultDuration = zoomLevel === 'hours' ? 0.5 : zoomLevel === 'days' ? 0.2 : 0.05;
-                                const orderEnd = order.expectedDeliveryDate ? new Date(order.expectedDeliveryDate) : addUnits(orderStart, 7, 'days');
-                                bar = { startOffset: dateDiffInUnits(startDate, orderStart, zoomLevel), duration: Math.max(defaultDuration, dateDiffInUnits(orderStart, orderEnd, zoomLevel)), order };
-                            }
-                            if (!bar || bar.startOffset + bar.duration < 0 || bar.startOffset > totalUnits) return null;
-                            const barLeft = bar.startOffset * unitWidth;
-                            const barWidth = bar.duration * unitWidth;
-                            let cumulativeTop = HEADER_HEIGHT;
-                            // FIX: Changed invalid JSX comment to a JS comment and removed 'as any' cast.
-                            // This calculation is inefficient (O(n^2)) but is being kept to preserve original logic.
-                            for (let i = 0; i < index; i++) cumulativeTop += timelineRows[i].type === 'group' ? GROUP_HEADER_ROW_HEIGHT : ROW_HEIGHT;
-                            const barTop = cumulativeTop + topOffset;
-                            if (row.type === 'group') return <div key={`bar-${index}`} className="absolute bg-gray-600 rounded-full" style={{ left: `${barLeft}px`, width: `${barWidth}px`, top: `${barTop}px`, height: `${barHeight}px` }} />
-                            if (row.type === 'order' && bar.order) {
-                                const order = bar.order;
-                                const { bg, border } = statusColors[order.status];
-                                const { border: deadlineBorderClass, pulse: pulseClass } = getDeadlineIndicatorClasses(order);
-                                return (<div key={`bar-${index}`} onClick={() => onSelectOrder(order)} onMouseEnter={(e) => handleBarMouseEnter(order, e)} onMouseMove={handleBarMouseMove} onMouseLeave={handleBarMouseLeave} className={`absolute rounded-md p-1 flex items-center cursor-pointer group transition-all hover:brightness-110 hover:z-30 ${bg} border-l-4 ${deadlineBorderClass} ${pulseClass} shadow-inner animate-fadeIn`} style={{ left: `${barLeft}px`, width: `${barWidth}px`, top: `${barTop}px`, height: `${barHeight}px`, animationDuration: '700ms' }}>
-                                    <div className="absolute top-0 left-0 h-full bg-white/20 rounded-md" style={{width: `${order.progress}%`}}></div>
-                                    <div className="relative truncate pl-1"><p className="font-semibold text-xs text-white truncate">{order.description}</p></div>
-                                </div>);
-                            }
-                            return null;
-                        })}
-                    </div>
-                </main>
+              {/* Grid */}
+              <div ref={timelineContainerRef} className="flex-1 overflow-auto relative kanban-container">
+                   <div style={{ width: `${totalWidth}px` }} className="relative">
+                      {/* Header */}
+                      <div className="sticky top-0 z-20 bg-coal-black h-[50px] border-b-2 border-granite-gray/20">
+                          {timelineHeaders.map(({date, label}) => (
+                              <div key={date.toISOString()} style={{ width: `${unitWidth}px`, left: `${dateDiffInUnits(startDate, date, zoomLevel) * unitWidth}px` }} className="absolute top-0 h-full flex items-center justify-center border-r border-granite-gray/20 text-sm font-semibold text-gray-400">
+                                  {label}
+                              </div>
+                          ))}
+                      </div>
+                      
+                      {/* Body */}
+                      <div className="relative">
+                          {/* Grid Lines */}
+                          {timelineHeaders.map(({date}) => (
+                              <div key={date.toISOString()} style={{ left: `${dateDiffInUnits(startDate, date, zoomLevel) * unitWidth}px` }} className="absolute top-0 h-full w-px bg-granite-gray/20"></div>
+                          ))}
+                          {/* Order Bars */}
+                          {(() => {
+                              let yOffset = 0;
+                              return filteredAndGroupedOrders.map(([client, clientOrders]) => {
+                                  const startY = yOffset;
+                                  yOffset += GROUP_HEADER_ROW_HEIGHT;
+                                  if (!collapsedClients.has(client)) {
+                                      yOffset += clientOrders.length * ROW_HEIGHT;
+                                  }
+                                  return (
+                                      <React.Fragment key={client}>
+                                          {!collapsedClients.has(client) && clientOrders.map((order, i) => {
+                                              const start = new Date(order.creationDate);
+                                              const end = new Date(order.expectedDeliveryDate || order.lastStatusUpdate);
+                                              const left = dateDiffInUnits(startDate, start, zoomLevel) * unitWidth;
+                                              const width = Math.max(dateDiffInUnits(start, end, zoomLevel) * unitWidth, 10);
+                                              const top = startY + GROUP_HEADER_ROW_HEIGHT + (i * ROW_HEIGHT);
+                                              const deadlineClasses = getDeadlineIndicatorClasses(order, statusColors);
+                                              const column = kanbanColumns.find(c => c.status === order.status);
+                                              
+                                              return (
+                                                <div
+                                                  key={order.id}
+                                                  className={`absolute h-[28px] rounded-md flex items-center px-2 text-xs font-semibold overflow-hidden transition-all duration-300 border-l-4 ${deadlineClasses.pulse}`}
+                                                  style={{ 
+                                                    top: `${top + 11}px`, // Adjusted for new row height 
+                                                    left: `${left}px`, 
+                                                    width: `${width}px`,
+                                                    backgroundColor: deadlineClasses.bg,
+                                                    borderColor: deadlineClasses.border
+                                                  }}
+                                                  onMouseEnter={(e) => handleBarMouseEnter(order, e)}
+                                                  onMouseMove={handleBarMouseMove}
+                                                  onMouseLeave={handleBarMouseLeave}
+                                                  onClick={() => onSelectOrder(order)}
+                                                >
+                                                    <span className="truncate text-white">{order.orderNumber} ({column?.title || order.status})</span>
+                                                </div>
+                                              )
+                                          })}
+                                      </React.Fragment>
+                                  );
+                              });
+                          })()}
+                      </div>
+                      
+                      {/* Now Line */}
+                      <div className="absolute top-0 h-full w-0.5 bg-red-500 z-10" style={{ left: `${nowPosition}px`}}>
+                          <div className="absolute -top-1 -left-1 w-2.5 h-2.5 bg-red-500 rounded-full"></div>
+                      </div>
+                   </div>
+              </div>
+          </div>
+
+          {/* Bar Tooltip */}
+          {tooltipData && (
+              <div 
+                  className={`fixed p-3 bg-coal-black border border-granite-gray/30 rounded-lg shadow-xl z-50 pointer-events-none transition-opacity duration-200 ${isTooltipVisible ? 'opacity-100' : 'opacity-0'}`}
+                  style={{ top: tooltipData.y + 15, left: tooltipData.x + 15, maxWidth: '250px' }}
+              >
+                  <p className="font-bold text-base text-white">{tooltipData.order.client}</p>
+                  <p className="text-sm text-gray-300 mb-2">{tooltipData.order.description}</p>
+                  <div className="text-xs text-granite-gray-light space-y-1 border-t border-granite-gray/20 pt-2">
+                      <p><strong>Início:</strong> {formatTooltipDate(tooltipData.order.creationDate)}</p>
+                      <p><strong>Prazo:</strong> {formatTooltipDate(tooltipData.order.expectedDeliveryDate)}</p>
+                      <p><strong>Duração:</strong> {formatDuration(tooltipData.order.creationDate, tooltipData.order.expectedDeliveryDate)}</p>
+                      <p><strong>Status:</strong> <span className="font-semibold text-gray-200">{kanbanColumns.find(c => c.status === tooltipData.order.status)?.title || tooltipData.order.status}</span></p>
+                  </div>
+              </div>
+          )}
+          
+          {/* Note Tooltip */}
+          {noteTooltip && (
+            <div
+                className="fixed p-2 bg-black border border-granite-gray/50 rounded-md shadow-lg z-50 pointer-events-none text-sm text-gray-200 whitespace-pre-wrap"
+                style={{ top: noteTooltip.y + 15, left: noteTooltip.x + 15, maxWidth: '250px' }}
+            >
+                {noteTooltip.content}
             </div>
-            {tooltipData && (
-                <div className="fixed z-50 p-3 bg-coal-black border border-granite-gray/50 rounded-lg shadow-xl text-sm transition-opacity duration-200 pointer-events-none w-64" style={{ left: tooltipData.x + 15, top: tooltipData.y + 15, opacity: isTooltipVisible ? 1 : 0 }}>
-                    <h4 className="font-bold text-white truncate">{tooltipData.order.orderNumber} - {tooltipData.order.client}</h4>
-                    <p className="text-granite-gray-light my-1 text-xs">{tooltipData.order.description}</p>
-                    <div className="mt-2 pt-2 border-t border-granite-gray/20 text-xs space-y-1">
-                        <div className="flex items-center"><span className={`w-2 h-2 rounded-full mr-2 ${statusColors[tooltipData.order.status]?.dot}`}></span><span>{tooltipData.order.status}</span><span className="ml-auto font-semibold">{tooltipData.order.progress}%</span></div>
-                        {zoomLevel === 'hours' && <div><span className="font-semibold text-gray-400 w-20 inline-block">Duração:</span> {formatDuration(tooltipData.order.creationDate, tooltipData.order.expectedDeliveryDate)}</div>}
-                        <div><span className="font-semibold text-gray-400 w-20 inline-block">Responsável:</span> {tooltipData.order.responsible || 'N/A'}</div>
-                        <div><span className="font-semibold text-gray-400 w-20 inline-block">Início:</span> {formatTooltipDate(tooltipData.order.creationDate)}</div>
-                        <div><span className="font-semibold text-gray-400 w-20 inline-block">Previsão:</span> {formatTooltipDate(tooltipData.order.expectedDeliveryDate)}</div>
-                    </div>
-                </div>
-            )}
-        </>
+          )}
+      </div>
     );
 };

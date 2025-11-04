@@ -1,13 +1,20 @@
-
-
-import React, { useState, useRef, useEffect } from 'react';
-import { ServiceOrder, ActivityLogEntry, OrderStatus, ActivityActionType, WeeklyReportData, AppNotification, NotificationColorType } from '../types';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { ServiceOrder, ActivityLogEntry, OrderStatus, ActivityActionType, WeeklyReportData, AppNotification, NotificationColorType, KanbanColumn } from '../types';
 import { BarChart3, CalendarCheck, Clock, CheckCircle, AlertTriangle, Users, FileDown, PieChart, Send, Eye, Download, ChevronLeft } from 'lucide-react';
 import { useAppContext } from './AppContext';
-import { StatCard } from './StatCard'; // Import the centralized component
 
 declare const Chart: any;
 declare const jspdf: any;
+
+const StatCard = ({ title, value, icon }: { title: string, value: string | number, icon: React.ReactNode }) => (
+    <div className="bg-black/20 p-4 rounded-lg flex items-center border border-granite-gray/20">
+        <div className="p-3 rounded-full mr-4 bg-granite-gray/20 text-granite-gray-light">{icon}</div>
+        <div>
+            <h3 className="text-sm font-semibold text-granite-gray-light">{title}</h3>
+            <p className="text-2xl font-bold text-white">{value}</p>
+        </div>
+    </div>
+);
 
 const DeliveriesByDayChart = ({ chartData }: { chartData: number[] }) => {
     const chartRef = useRef<HTMLCanvasElement>(null);
@@ -49,7 +56,7 @@ const DeliveriesByDayChart = ({ chartData }: { chartData: number[] }) => {
     return <canvas ref={chartRef}></canvas>;
 };
 
-const StatusDistributionChart = ({ chartData }: { chartData: { labels: string[], data: number[] } }) => {
+const StatusDistributionChart = ({ chartData, colors }: { chartData: { labels: string[], data: number[] }, colors: Record<string, string> }) => {
     const chartRef = useRef<HTMLCanvasElement>(null);
     const chartInstance = useRef<any>(null);
      useEffect(() => {
@@ -62,7 +69,7 @@ const StatusDistributionChart = ({ chartData }: { chartData: { labels: string[],
                 labels: chartData.labels,
                 datasets: [{
                     data: chartData.data,
-                    backgroundColor: ['#5AC8FA', '#FF9500', '#FFCC00', '#DCFF00', '#AF52DE', '#FF3B30', '#4CD964'],
+                    backgroundColor: chartData.labels.map(label => colors[label] || '#808080'),
                     borderColor: '#232323',
                     borderWidth: 2,
                 }]
@@ -77,13 +84,13 @@ const StatusDistributionChart = ({ chartData }: { chartData: { labels: string[],
             }
         });
         return () => { if (chartInstance.current) chartInstance.current.destroy(); };
-    }, [chartData]);
+    }, [chartData, colors]);
     return <canvas ref={chartRef}></canvas>;
 };
 
 
 export const ReportsPage: React.FC = () => {
-    const { orders, activityLog: log, addNotification } = useAppContext();
+    const { orders, activityLog: log, addNotification, kanbanColumns } = useAppContext();
     const [savedReports, setSavedReports] = useState<WeeklyReportData[]>([]);
     const [selectedReport, setSelectedReport] = useState<WeeklyReportData | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -100,6 +107,13 @@ export const ReportsPage: React.FC = () => {
             localStorage.setItem('dz-studio-reports', JSON.stringify(savedReports));
         }
     }, [savedReports]);
+    
+    const chartColors = useMemo(() => {
+        return kanbanColumns.reduce((acc, col) => {
+            acc[col.status] = col.color;
+            return acc;
+        }, {} as Record<string, string>);
+    }, [kanbanColumns]);
 
     const getLastWeekRange = () => {
         const today = new Date();
@@ -151,10 +165,16 @@ export const ReportsPage: React.FC = () => {
                 const match = l.details.match(/para '(.*?)'/);
                 if (match && match[1]) {
                     const status = match[1];
-                    statusDistributionMap[status] = (statusDistributionMap[status] || 0) + 1;
+                    const column = kanbanColumns.find(c => c.status === status || c.title === status);
+                    if (column) {
+                        statusDistributionMap[column.title] = (statusDistributionMap[column.title] || 0) + 1;
+                    }
                 }
             } else if (l.action === ActivityActionType.Complete) {
-                statusDistributionMap[OrderStatus.Delivered] = (statusDistributionMap[OrderStatus.Delivered] || 0) + 1;
+                 const deliveredColumn = kanbanColumns.find(c => c.status === 'Entregue');
+                 if(deliveredColumn) {
+                    statusDistributionMap[deliveredColumn.title] = (statusDistributionMap[deliveredColumn.title] || 0) + 1;
+                 }
             }
         });
         const statusDistribution = {
@@ -333,7 +353,7 @@ DZ Studio Organizer
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 flex-1 min-h-[300px]">
                     <div id="deliveriesChart" className="lg:col-span-3 bg-black/20 p-4 rounded-lg border border-granite-gray/20"><DeliveriesByDayChart chartData={selectedReport.deliveriesByDay} /></div>
-                    <div id="statusChart" className="lg:col-span-2 bg-black/20 p-4 rounded-lg border border-granite-gray/20"><StatusDistributionChart chartData={selectedReport.statusDistribution} /></div>
+                    <div id="statusChart" className="lg:col-span-2 bg-black/20 p-4 rounded-lg border border-granite-gray/20"><StatusDistributionChart chartData={selectedReport.statusDistribution} colors={chartColors} /></div>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Tables */}
