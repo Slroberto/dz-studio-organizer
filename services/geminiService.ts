@@ -1,28 +1,25 @@
 import { ServiceOrder, OrderStatus, DailySummaryData } from '../types';
 
-// This service is now fully mocked and does not use any external APIs.
+// The GoogleGenAI import is removed to prevent loading errors.
 
 export const generateFinancialInsight = async (kpi: { totalValue: number, deliveredValue: number, openValue: number, overdueCount: number }): Promise<string> => {
-    const { deliveredValue, openValue, overdueCount } = kpi;
+    console.log("--- MOCK Gemini API for Financial Insight ---");
+    console.log("KPIs received:", kpi);
+    // Simulate network latency
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    // MOCK IMPLEMENTATION
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const insight = `
-**Análise Financeira (IA Mock):**
+    const formattedDeliveredValue = kpi.deliveredValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+    return `
 **Resumo Financeiro:**
-Excelente progresso! Seu faturamento já realizado atingiu **${deliveredValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}**. Com **${openValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}** em projetos ainda em andamento, o pipeline para as próximas semanas está robusto.
+A saúde financeira parece estável. O faturamento realizado de **${formattedDeliveredValue}** é um bom sinal, mas há um valor considerável em projetos abertos.
 
 **Ponto de Atenção:**
-Atualmente, há **${overdueCount} projeto${overdueCount === 1 ? '' : 's'} com o prazo vencido**. É recomendável focar na finalização destes para garantir a satisfação do cliente e liberar o faturamento pendente.
+O principal ponto de atenção são os **${kpi.overdueCount} projetos atrasados**. Atrasos podem impactar o fluxo de caixa e a satisfação do cliente.
 
 **Recomendação Estratégica:**
-Continue focando em mover os projetos para a etapa de 'Entregue'. A performance atual é sólida e manter o ritmo garantirá um fluxo de caixa saudável para o estúdio.
-            `;
-            resolve(insight.trim());
-        }, 1200); // Simulate API call latency
-    });
+Priorize a finalização dos projetos atrasados para converter o "Valor em Aberto" em faturamento o mais rápido possível.
+`;
 };
 
 

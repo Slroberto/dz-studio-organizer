@@ -1,8 +1,5 @@
-
-
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { CommercialQuote } from '../types';
+import { CommercialQuote, QuoteStatus } from '../types';
 import { QuoteManagementPage } from './QuoteManagementPage';
 import { useAppContext } from './AppContext';
 import { DollarSign, BarChart3, TrendingUp, FileText, Briefcase } from 'lucide-react';
@@ -13,50 +10,9 @@ interface CommercialDashboardPageProps {
 
 type CommercialTab = 'dashboard' | 'quotes';
 
-export const CommercialDashboardPage: React.FC<CommercialDashboardPageProps> = ({ onConvertToOS }) => {
-    const [activeTab, setActiveTab] = useState<CommercialTab>('dashboard');
-
-    return (
-        <div className="flex flex-col h-full">
-            <div className="flex-shrink-0 border-b border-granite-gray/20 mb-4">
-                <button
-                    onClick={() => setActiveTab('dashboard')}
-                    className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'dashboard' ? 'border-b-2 border-cadmium-yellow text-cadmium-yellow' : 'text-granite-gray-light hover:text-white'}`}
-                >
-                    Dashboard
-                </button>
-                <button
-                    onClick={() => setActiveTab('quotes')}
-                    className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'quotes' ? 'border-b-2 border-cadmium-yellow text-cadmium-yellow' : 'text-granite-gray-light hover:text-white'}`}
-                >
-                    Orçamentos
-                </button>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-                {activeTab === 'dashboard' && <DashboardView />}
-                {activeTab === 'quotes' && <QuoteManagementPage onConvertToOS={onConvertToOS} />}
-            </div>
-        </div>
-    );
-};
-
-// Renamed the original component to DashboardView and moved it here
-// to keep it self-contained within the commercial page structure.
-const DashboardView: React.FC = () => {
-    // All the original logic of CommercialDashboardPage is now here.
-    // This includes the state for filters, KPI calculations, and chart components.
-    // For brevity in this diff, I'm abstracting the full component code.
-    // The implementation is the same as the previous 'CommercialDashboardPage.tsx'.
-    return <DashboardContent />;
-};
-
-// This component represents the full content of the previous CommercialDashboardPage.tsx
-// I am nesting it here to avoid creating yet another file for a sub-component.
-// FIX: Removed require calls and moved to top-level ES6 imports.
-
 declare const Chart: any;
 
-const useCountUp = (end: number, isCurrency = false, duration = 1500) => {
+function useCountUp(end: number, isCurrency = false, duration = 1500) {
     const [count, setCount] = useState(0);
     const frameRate = 1000 / 60;
     const totalFrames = Math.round(duration / frameRate);
@@ -84,7 +40,7 @@ const useCountUp = (end: number, isCurrency = false, duration = 1500) => {
     return Math.round(count);
 };
 
-const KpiCard = ({ title, value, icon, isCurrency = false, isPercentage = false }: { title: string; value: number; icon: React.ReactNode; isCurrency?: boolean; isPercentage?: boolean; }) => {
+function KpiCard({ title, value, icon, isCurrency = false, isPercentage = false }: { title: string; value: number; icon: React.ReactNode; isCurrency?: boolean; isPercentage?: boolean; }) {
     const animatedValue = useCountUp(value, isCurrency);
     const animatedCount = useCountUp(value);
 
@@ -106,7 +62,7 @@ const KpiCard = ({ title, value, icon, isCurrency = false, isPercentage = false 
     );
 };
 
-const FunnelChart = ({ data }: { data: { sent: number; negotiating: number; approved: number } }) => {
+function FunnelChart({ data }: { data: { sent: number; negotiating: number; approved: number } }) {
     const maxVal = data.sent > 0 ? data.sent : 1;
     return (
         <div className="space-y-3">
@@ -129,8 +85,7 @@ const FunnelChart = ({ data }: { data: { sent: number; negotiating: number; appr
     );
 };
 
-// Chart components (LossReasonChart, ClientRevenueChart, ConversionEvolutionChart) are assumed to be here, same as before.
-const LossReasonChart = ({ quotes }: { quotes: CommercialQuote[] }) => {
+function LossReasonChart({ quotes }: { quotes: CommercialQuote[] }) {
     const chartRef = useRef<HTMLCanvasElement>(null);
     const chartInstance = useRef<any>(null);
 
@@ -175,7 +130,7 @@ const LossReasonChart = ({ quotes }: { quotes: CommercialQuote[] }) => {
     return <canvas ref={chartRef}></canvas>;
 };
 
-const ClientRevenueChart = ({ quotes }: { quotes: CommercialQuote[] }) => {
+function ClientRevenueChart({ quotes }: { quotes: CommercialQuote[] }) {
     const chartRef = useRef<HTMLCanvasElement>(null);
     const chartInstance = useRef<any>(null);
 
@@ -218,7 +173,7 @@ const ClientRevenueChart = ({ quotes }: { quotes: CommercialQuote[] }) => {
     return <canvas ref={chartRef}></canvas>;
 };
 
-const ConversionEvolutionChart = ({ quotes }: { quotes: CommercialQuote[] }) => {
+function ConversionEvolutionChart({ quotes }: { quotes: CommercialQuote[] }) {
     const chartRef = useRef<HTMLCanvasElement>(null);
     const chartInstance = useRef<any>(null);
 
@@ -267,8 +222,8 @@ const ConversionEvolutionChart = ({ quotes }: { quotes: CommercialQuote[] }) => 
     return <canvas ref={chartRef}></canvas>;
 };
 
-const DashboardContent: React.FC = () => {
-    const { quotes, users } = useAppContext();
+function DashboardContent() {
+    const { quotes } = useAppContext();
     const [period, setPeriod] = useState('all');
     const [responsible, setResponsible] = useState('all');
     const [client, setClient] = useState('all');
@@ -338,7 +293,6 @@ const DashboardContent: React.FC = () => {
             
             {/* KPIs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* FIX: Added Briefcase icon to fix render error. */}
                 <KpiCard title="Valor em Negociação" value={kpiData.totalNegotiatingValue} icon={<Briefcase size={20} />} isCurrency />
                 <KpiCard title="Taxa de Conversão" value={kpiData.conversionRate} icon={<TrendingUp size={20} />} isPercentage />
                 <KpiCard title="Orçamentos Enviados (Mês)" value={kpiData.sentThisMonth} icon={<FileText size={20} />} />
@@ -367,6 +321,33 @@ const DashboardContent: React.FC = () => {
                         <div className="flex-1 relative"><ConversionEvolutionChart quotes={filteredQuotes} /></div>
                     </div>
                 </div>
+            </div>
+        </div>
+    );
+};
+
+export const CommercialDashboardPage: React.FC<CommercialDashboardPageProps> = ({ onConvertToOS }) => {
+    const [activeTab, setActiveTab] = useState<CommercialTab>('dashboard');
+
+    return (
+        <div className="flex flex-col h-full">
+            <div className="flex-shrink-0 border-b border-granite-gray/20 mb-4">
+                <button
+                    onClick={() => setActiveTab('dashboard')}
+                    className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'dashboard' ? 'border-b-2 border-cadmium-yellow text-cadmium-yellow' : 'text-granite-gray-light hover:text-white'}`}
+                >
+                    Dashboard
+                </button>
+                <button
+                    onClick={() => setActiveTab('quotes')}
+                    className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'quotes' ? 'border-b-2 border-cadmium-yellow text-cadmium-yellow' : 'text-granite-gray-light hover:text-white'}`}
+                >
+                    Orçamentos
+                </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+                {activeTab === 'dashboard' && <DashboardContent />}
+                {activeTab === 'quotes' && <QuoteManagementPage onConvertToOS={onConvertToOS} />}
             </div>
         </div>
     );

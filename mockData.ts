@@ -5,12 +5,6 @@ export const MOCK_USERS: User[] = [
     id: 'user-1', name: 'Sandro (Admin)', email: 'sandro@dz.studio', picture: 'https://i.pravatar.cc/150?u=sandro', role: UserRole.Admin, password: '123'
   },
   {
-    id: 'user-2', name: 'Ana (Assistente)', email: 'ana@dz.studio', picture: 'https://i.pravatar.cc/150?u=ana', role: UserRole.Assistant, password: '123'
-  },
-  {
-    id: 'user-3', name: 'Beto (Viewer)', email: 'beto@viewer.com', picture: 'https://i.pravatar.cc/150?u=beto', role: UserRole.Viewer, password: '123'
-  },
-  {
     id: 'user-bot', name: 'DZ Bot', email: 'bot@dz.studio', picture: 'https://i.pravatar.cc/150?u=bot', role: UserRole.Assistant, password: '123'
   },
 ];
@@ -20,7 +14,7 @@ export const MOCK_USER: User = MOCK_USERS[0];
 export const MOCK_ORDERS: ServiceOrder[] = [
   {
     id: 'OS-001', client: 'Nike', orderNumber: 'OS-001', description: 'Fotos de calçados para campanha de verão.', status: 'Aguardando produto',
-    progress: 0, thumbnailUrl: 'https://picsum.photos/seed/nike/400/300', responsible: 'Ana (Assistente)',
+    progress: 0, thumbnailUrl: 'https://picsum.photos/seed/nike/400/300', responsible: 'Sandro (Admin)',
     expectedDeliveryDate: '2024-08-10T12:00:00.000Z', lastStatusUpdate: '2024-07-28T10:00:00.000Z', creationDate: '2024-07-28T10:00:00.000Z', imageCount: 50, value: 3500, costs: 1200, _rowIndex: 2, link: 'https://www.google.com', tasks: [], comments: [],
     customFields: {
       'cf-location': 'Estúdio A',
@@ -31,7 +25,7 @@ export const MOCK_ORDERS: ServiceOrder[] = [
   },
   {
     id: 'OS-002', client: 'Adidas', orderNumber: 'OS-002', description: 'Still de roupas esportivas coleção outono.', status: 'Em foto',
-    progress: 16, thumbnailUrl: 'https://picsum.photos/seed/adidas/400/300', responsible: 'Beto (Viewer)',
+    progress: 16, thumbnailUrl: 'https://picsum.photos/seed/adidas/400/300', responsible: 'Sandro (Admin)',
     expectedDeliveryDate: '2024-08-12T12:00:00.000Z', lastStatusUpdate: '2024-07-29T14:00:00.000Z', creationDate: '2024-07-27T11:00:00.000Z', imageCount: 30, value: 2800, costs: 1800, _rowIndex: 3, link: '#', tasks: [], comments: [],
     notes: 'Fotógrafo Beto alocado. Usar fundo cinza claro.'
   },
@@ -42,7 +36,7 @@ export const MOCK_ORDERS: ServiceOrder[] = [
   },
   {
     id: 'OS-004', client: 'Coca-Cola', orderNumber: 'OS-004', description: 'Fotos de produto para campanha de marketing.', status: 'Pós-produção',
-    progress: 50, thumbnailUrl: 'https://picsum.photos/seed/cocacola/400/300', responsible: 'Ana (Assistente)',
+    progress: 50, thumbnailUrl: 'https://picsum.photos/seed/cocacola/400/300', responsible: 'Sandro (Admin)',
     expectedDeliveryDate: '2024-08-15T12:00:00.000Z', lastStatusUpdate: '2024-07-30T11:30:00.000Z', creationDate: '2024-07-25T09:00:00.000Z', imageCount: 15, value: 5000, costs: 2200, _rowIndex: 5, link: '#',
     tasks: [
         { id: 't-4-1', text: 'Recorte das garrafas', completed: true },
@@ -65,7 +59,7 @@ export const MOCK_ORDERS: ServiceOrder[] = [
   },
   {
     id: 'OS-006', client: 'Samsung', orderNumber: 'OS-006', description: 'Campanha para o novo Galaxy Fold.', status: 'Aprovação',
-    progress: 84, thumbnailUrl: 'https://picsum.photos/seed/samsung/400/300', responsible: 'Beto (Viewer)',
+    progress: 84, thumbnailUrl: 'https://picsum.photos/seed/samsung/400/300', responsible: 'Sandro (Admin)',
     expectedDeliveryDate: '2024-07-31T12:00:00.000Z', lastStatusUpdate: '2024-07-30T16:45:00.000Z', creationDate: '2024-07-22T14:00:00.000Z', imageCount: 40, value: 7500, costs: 3000, _rowIndex: 7, link: '#', tasks: [], comments: [],
     proofingGallery: [
         {
@@ -107,8 +101,6 @@ export const MOCK_ORDERS: ServiceOrder[] = [
 
 export const MOCK_ACTIVITY_LOG: ActivityLogEntry[] = [
     { id: 'log-1', timestamp: '2024-07-30T17:00:00.000Z', userId: 'user-1', userName: 'Sandro (Admin)', action: ActivityActionType.Create, orderId: 'OS-008', orderNumber: 'OS-008', clientName: 'Magazine Luiza' },
-    { id: 'log-2', timestamp: '2024-07-30T16:45:00.000Z', userId: 'user-3', userName: 'Beto (Viewer)', action: ActivityActionType.Move, orderId: 'OS-006', orderNumber: 'OS-006', clientName: 'Samsung', details: "de 'Cromia' para 'Aprovação'" },
-    { id: 'log-3', timestamp: '2024-07-30T11:30:00.000Z', userId: 'user-2', userName: 'Ana (Assistente)', action: ActivityActionType.Update, orderId: 'OS-004', orderNumber: 'OS-004', clientName: 'Coca-Cola', details: "Descrição atualizada" },
     { id: 'log-4', timestamp: '2024-07-29T12:00:00.000Z', userId: 'user-1', userName: 'Sandro (Admin)', action: ActivityActionType.Complete, orderId: 'OS-007', orderNumber: 'OS-007', clientName: 'Gucci' },
 ];
 
@@ -145,7 +137,7 @@ export const MOCK_QUOTES: CommercialQuote[] = [
       decisionDate: new Date().toISOString(),
     },
     {
-      id: 'Q-002', quoteNumber: 'ORC-2024-052', client: 'Adidas', responsible: 'Ana (Assistente)', status: QuoteStatus.Rejected,
+      id: 'Q-002', quoteNumber: 'ORC-2024-052', client: 'Adidas', responsible: 'Sandro (Admin)', status: QuoteStatus.Rejected,
       sentDate: new Date(new Date().setDate(new Date().getDate() - 10)).toISOString(),
       validUntil: new Date(new Date().setDate(new Date().getDate() + 20)).toISOString(),
       items: quote2Items, discountType: 'percentage', discountValue: 10, value: calculateTotal(quote2Items, 'percentage', 10),
@@ -159,7 +151,7 @@ export const MOCK_QUOTES: CommercialQuote[] = [
       terms: 'Validade da proposta: 30 dias.',
     },
     {
-      id: 'Q-004', quoteNumber: 'ORC-2024-055', client: 'Puma', responsible: 'Ana (Assistente)', status: QuoteStatus.Sent,
+      id: 'Q-004', quoteNumber: 'ORC-2024-055', client: 'Puma', responsible: 'Sandro (Admin)', status: QuoteStatus.Sent,
       sentDate: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(),
       validUntil: new Date(new Date().setDate(new Date().getDate() + 29)).toISOString(),
       items: quote4Items, discountType: 'percentage', discountValue: 0, value: calculateTotal(quote4Items, 'percentage', 0),
@@ -248,41 +240,11 @@ export const MOCK_REVENUE_ENTRIES: RevenueEntry[] = [
 
 export const MOCK_CHAT_CHANNELS: ChatChannel[] = [
   {
-    id: 'channel-1', name: 'Fotografia Geral', type: ChannelType.Group, members: ['user-1', 'user-2', 'user-3'], unreadCount: 2,
-    lastMessage: { id: 'msg-3', channelId: 'channel-1', senderId: 'user-2', senderName: 'Ana (Assistente)', text: 'A luz principal está com defeito, já chamei o técnico.', timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString() }
-  },
-  {
-    id: 'channel-2', name: 'Pós-Produção', type: ChannelType.Group, members: ['user-1', 'user-2'], unreadCount: 0,
-    lastMessage: { id: 'msg-4', channelId: 'channel-2', senderId: 'user-1', senderName: 'Sandro (Admin)', text: 'As fotos da Nike foram aprovadas!', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() }
-  },
-  {
-    id: 'channel-3', name: 'Sandro (Admin)', type: ChannelType.Private, members: ['user-1', 'user-2'], unreadCount: 1, // This is Ana's view of the chat with Sandro
-    lastMessage: { id: 'msg-5', channelId: 'channel-3', senderId: 'user-1', senderName: 'Sandro (Admin)', text: 'Pode me enviar o relatório do mês?', timestamp: new Date(Date.now() - 10 * 60 * 1000).toISOString() }
-  },
-   {
     id: 'channel-4', name: 'DZ Bot', type: ChannelType.Private, members: ['user-1', 'user-bot'], unreadCount: 0,
     lastMessage: { id: 'msg-6', channelId: 'channel-4', senderId: 'user-bot', senderName: 'DZ Bot', text: 'Olá! Como posso ajudar hoje?', timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() }
   }
 ];
 
 export const MOCK_CHAT_MESSAGES: ChatMessage[] = [
-  // Channel 1: Fotografia Geral
-  { id: 'msg-1', channelId: 'channel-1', senderId: 'user-1', senderName: 'Sandro (Admin)', text: 'Pessoal, a câmera 2 precisa de uma nova lente. @Ana (Assistente) pode verificar?', timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(), mentions: ['user-2'] },
-  { id: 'msg-2', channelId: 'channel-1', senderId: 'user-3', senderName: 'Beto (Viewer)', text: 'Vou dar uma olhada agora, Sandro.', timestamp: new Date(Date.now() - 14 * 60 * 1000).toISOString() },
-  { id: 'msg-3', channelId: 'channel-1', senderId: 'user-2', senderName: 'Ana (Assistente)', text: 'A luz principal está com defeito, já chamei o técnico.', timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString() },
-  { id: 'msg-3-reply', channelId: 'channel-1', senderId: 'user-1', senderName: 'Sandro (Admin)', text: 'Ótimo, obrigado Ana!', timestamp: new Date(Date.now() - 4 * 60 * 1000).toISOString(), replyTo: 'msg-3' },
-
-  // Channel 2: Pós-Produção
-  { id: 'msg-4', channelId: 'channel-2', senderId: 'user-1', senderName: 'Sandro (Admin)', text: 'As fotos da Nike foram aprovadas!', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    reactions: {
-      '👍': ['user-2'],
-      '🎉': ['user-1', 'user-2'],
-    },
-  },
-
-  // Channel 3: Private Sandro & Ana
-  { id: 'msg-5', channelId: 'channel-3', senderId: 'user-1', senderName: 'Sandro (Admin)', text: 'Pode me enviar o relatório do mês?', timestamp: new Date(Date.now() - 10 * 60 * 1000).toISOString() },
-  
-  // Channel 4: Private Sandro & Bot
   { id: 'msg-6', channelId: 'channel-4', senderId: 'user-bot', senderName: 'DZ Bot', text: 'Olá! Como posso ajudar hoje?', timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() }
 ];
