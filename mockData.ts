@@ -249,10 +249,10 @@ export const MOCK_REVENUE_ENTRIES: RevenueEntry[] = [
 export const MOCK_CHAT_CHANNELS: ChatChannel[] = [
   {
     id: 'channel-4', name: 'DZ Bot', type: ChannelType.Private, members: ['user-1', 'user-bot'], unreadCount: 0,
-    lastMessage: { id: 'msg-6', channelId: 'channel-4', senderId: 'user-bot', senderName: 'DZ Bot', text: 'Olá! Como posso ajudar hoje?', timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() }
+    lastMessage: { id: 'msg-6', channelId: 'channel-4', senderId: 'user-bot', senderName: 'DZ Bot', text: 'Olá! Sou o assistente de IA. Mencione-me com **@DZ Bot** para executar comandos.', timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() }
   }
 ];
 
 export const MOCK_CHAT_MESSAGES: ChatMessage[] = [
-  { id: 'msg-6', channelId: 'channel-4', senderId: 'user-bot', senderName: 'DZ Bot', text: 'Olá! Como posso ajudar hoje?', timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() }
+  { id: 'msg-6', channelId: 'channel-4', senderId: 'user-bot', senderName: 'DZ Bot', text: 'Olá! Sou o assistente de IA. Mencione-me com **@DZ Bot** para executar comandos.', timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() }
 ];

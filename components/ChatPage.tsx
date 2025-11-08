@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useLayoutEffect } from 'react';
 import { useAppContext } from './AppContext';
-import { ChannelType, ChatChannel, ChatMessage, User, ChatAttachment } from '../types';
+import { ChannelType, ChatChannel, ChatMessage, User, ChatAttachment, ActionableIntent } from '../types';
 import { PlusCircle, Send, Users, User as UserIcon, X, Paperclip, File as FileIcon, Download, Smile, CornerDownRight, Search, Edit, Trash2, Loader, Info } from 'lucide-react';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { ChannelInfoPanel } from './ChannelInfoPanel';
@@ -214,14 +214,39 @@ const renderWithMentionsAndLinks = (text: string, users: User[]): (string | Reac
 };
 
 const renderBotMessage = (text: string) => {
-    const parts = text.split(/(\*\*.*?\*\*)/g).filter(Boolean); // Split by **bolded** parts
+    const lines = text.split('\n');
     return (
-        <div className="text-sm whitespace-pre-wrap break-words">
-            {parts.map((part, index) => {
-                if (part.startsWith('**') && part.endsWith('**')) {
-                    return <strong key={index} className="text-white">{part.slice(2, -2)}</strong>;
+        <div className="text-sm whitespace-pre-wrap break-words space-y-1">
+            {lines.map((line, lineIndex) => {
+                // Handle list items
+                if (line.trim().startsWith('- ')) {
+                    const listItemContent = line.trim().substring(2);
+                    const boldedListItem = listItemContent.split(/(\*\*.*?\*\*)/g).filter(Boolean);
+                    return (
+                        <div key={lineIndex} className="flex items-start">
+                            <span className="mr-2 text-gray-400">•</span>
+                            <p>
+                                {boldedListItem.map((part, partIndex) => 
+                                    part.startsWith('**') && part.endsWith('**') 
+                                    ? <strong key={partIndex} className="text-white">{part.slice(2, -2)}</strong> 
+                                    : part
+                                )}
+                            </p>
+                        </div>
+                    );
                 }
-                return part;
+                
+                // Handle regular text with bolding
+                const parts = line.split(/(\*\*.*?\*\*)/g).filter(Boolean);
+                return (
+                    <p key={lineIndex}>
+                        {parts.map((part, partIndex) => 
+                            part.startsWith('**') && part.endsWith('**') 
+                            ? <strong key={partIndex} className="text-white">{part.slice(2, -2)}</strong> 
+                            : part
+                        )}
+                    </p>
+                );
             })}
         </div>
     );
@@ -246,10 +271,26 @@ const formatDateSeparator = (dateString: string): string => {
     });
 };
 
+const SuggestedActionDisplay: React.FC<{
+    suggestion: ActionableIntent;
+    onConfirm: () => void;
+    onDismiss: () => void;
+}> = ({ suggestion, onConfirm, onDismiss }) => {
+    return (
+        <div className="ml-10 mt-2 p-3 bg-black/30 border-l-2 border-cadmium-yellow rounded-r-lg card-enter-animation max-w-xs md:max-w-md">
+            <p className="text-sm text-gray-200">{suggestion.message}</p>
+            <div className="mt-2 flex items-center gap-2">
+                <button onClick={onConfirm} className="px-3 py-1 text-xs font-bold bg-cadmium-yellow text-coal-black rounded hover:brightness-110">Sim, confirmar</button>
+                <button onClick={onDismiss} className="px-3 py-1 text-xs font-semibold text-gray-400 rounded hover:bg-granite-gray/20">Ignorar</button>
+            </div>
+        </div>
+    );
+};
+
 const PAGE_SIZE = 30; // Number of messages to load at a time
 
 export const ChatPage = () => {
-    const { channels, messages, currentUser, sendMessage, users, createChannel, toggleReaction, editMessage, deleteMessage, setUserTyping, typingStatus } = useAppContext();
+    const { channels, messages, currentUser, sendMessage, users, createChannel, toggleReaction, editMessage, deleteMessage, setUserTyping, typingStatus, executeSuggestedAction, dismissSuggestedAction } = useAppContext();
     const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
     const [newMessage, setNewMessage] = useState('');
     const [attachment, setAttachment] = useState<File | null>(null);
@@ -570,94 +611,108 @@ export const ChatPage = () => {
             const isEditing = editingMessage?.id === msg.id;
             
             components.push(
-                 <div key={msg.id} className={`flex items-end gap-3 ${isCurrentUser ? 'justify-end' : 'justify-start'} ${!isGrouped ? 'mt-4' : 'mt-1'}`}>
-                    {!isCurrentUser && (
-                        <div className="w-8 flex-shrink-0">
-                            {!isGrouped && <img src={msg.senderPicture} alt={msg.senderName} className="w-8 h-8 rounded-full" />}
-                        </div>
-                    )}
-                    <div className={`group relative ${isMentioned ? 'bg-yellow-900/30 rounded-lg' : ''}`}>
-                        <div className={`max-w-xs md:max-w-md p-3 rounded-lg ${isCurrentUser ? 'bg-cadmium-yellow text-coal-black' : isBotMessage ? 'bg-black/30 border border-blue-500/30' : 'bg-granite-gray/20'}`}>
-                            {!isCurrentUser && !isGrouped && (
-                                <p className={`text-xs font-bold mb-1 flex items-center ${isBotMessage ? 'text-blue-300' : 'text-cadmium-yellow'}`}>
-                                    {msg.senderName}
-                                    {isBotMessage && <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-blue-500/20">BOT</span>}
+                <div key={msg.id} className="flex flex-col">
+                     <div className={`flex items-end gap-3 ${isCurrentUser ? 'justify-end' : 'justify-start'} ${!isGrouped ? 'mt-4' : 'mt-1'}`}>
+                        {!isCurrentUser && (
+                            <div className="w-8 flex-shrink-0">
+                                {!isGrouped && <img src={msg.senderPicture} alt={msg.senderName} className="w-8 h-8 rounded-full" />}
+                            </div>
+                        )}
+                        <div className={`group relative ${isMentioned ? 'bg-yellow-900/30 rounded-lg' : ''}`}>
+                            <div className={`max-w-xs md:max-w-md p-3 rounded-lg ${isCurrentUser ? 'bg-cadmium-yellow text-coal-black' : isBotMessage ? 'bg-black/30 border border-blue-500/30' : 'bg-granite-gray/20'}`}>
+                                {!isCurrentUser && !isGrouped && (
+                                    <p className={`text-xs font-bold mb-1 flex items-center ${isBotMessage ? 'text-blue-300' : 'text-cadmium-yellow'}`}>
+                                        {msg.senderName}
+                                        {isBotMessage && <span className="ml-1.5 px-1.5 py-0.5 text-xs rounded-full bg-blue-500/20">BOT</span>}
+                                    </p>
+                                )}
+                                
+                                {originalMessage && (
+                                    <div className={`text-xs p-2 border-l-2 mb-2 rounded-l ${isCurrentUser ? 'border-coal-black/30 bg-black/10' : 'border-granite-gray/50 bg-black/20'}`}>
+                                        <p className="font-semibold">{originalMessage.senderName}</p>
+                                        <p className={`truncate ${isCurrentUser ? 'text-coal-black/70' : 'text-granite-gray-light'}`}>{originalMessage.text || 'Anexo'}</p>
+                                    </div>
+                                )}
+                                
+                                {isEditing ? (
+                                    <textarea
+                                    ref={editInputRef}
+                                    value={editingMessage.text}
+                                    onChange={(e) => setEditingMessage({ ...editingMessage, text: e.target.value })}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit(); }
+                                        if (e.key === 'Escape') { e.preventDefault(); setEditingMessage(null); }
+                                    }}
+                                    className="w-full bg-black/30 text-white p-2 rounded border border-granite-gray/50 text-sm"
+                                    />
+                                ) : msg.status === 'thinking' ? (
+                                    <div className="flex items-center text-sm text-gray-400">
+                                        <span>DZ Bot está digitando</span>
+                                        <span className="typing-dots ml-1"><span>.</span><span>.</span><span>.</span></span>
+                                    </div>
+                                ) : msg.text && (isBotMessage ? renderBotMessage(msg.text) : <p className="text-sm whitespace-pre-wrap break-words">{highlightMatch(msg.text, searchTerm)}</p>)}
+                                
+                                {msg.attachment && <AttachmentDisplay attachment={msg.attachment} isCurrentUser={isCurrentUser} />}
+                                
+                                <p className={`text-xs mt-1 ${isCurrentUser ? 'text-gray-800/70' : 'text-gray-400'} text-right`}>
+                                    {msg.editedAt && <span className='italic mr-1'>(editado)</span>}
+                                    {new Date(msg.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                 </p>
-                            )}
+                            </div>
                             
-                            {originalMessage && (
-                                <div className={`text-xs p-2 border-l-2 mb-2 rounded-l ${isCurrentUser ? 'border-coal-black/30 bg-black/10' : 'border-granite-gray/50 bg-black/20'}`}>
-                                    <p className="font-semibold">{originalMessage.senderName}</p>
-                                    <p className={`truncate ${isCurrentUser ? 'text-coal-black/70' : 'text-granite-gray-light'}`}>{originalMessage.text || 'Anexo'}</p>
+                            {!isBotMessage && !isEditing && isCurrentUser && (
+                                <div className={`absolute top-0 ${isCurrentUser ? 'left-0 -translate-x-full mr-2' : 'right-0 translate-x-full ml-2'} -mt-1 flex items-center gap-1 bg-coal-black p-1 rounded-full border border-granite-gray/20 opacity-0 group-hover:opacity-100 transition-opacity z-10`}>
+                                    <button onClick={() => setEditingMessage({ id: msg.id, text: msg.text })} className="p-1 hover:bg-granite-gray/20 rounded-full"><Edit size={16} /></button>
+                                    <button onClick={() => setMessageToDelete(msg)} className="p-1 hover:bg-granite-gray/20 rounded-full"><Trash2 size={16} /></button>
                                 </div>
                             )}
-                            
-                            {isEditing ? (
-                                <textarea
-                                ref={editInputRef}
-                                value={editingMessage.text}
-                                onChange={(e) => setEditingMessage({ ...editingMessage, text: e.target.value })}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit(); }
-                                    if (e.key === 'Escape') { e.preventDefault(); setEditingMessage(null); }
-                                }}
-                                className="w-full bg-black/30 text-white p-2 rounded border border-granite-gray/50 text-sm"
-                                />
-                            ) : msg.text && (isBotMessage ? renderBotMessage(msg.text) : <p className="text-sm whitespace-pre-wrap break-words">{highlightMatch(msg.text, searchTerm)}</p>)}
-                            
-                            {msg.attachment && <AttachmentDisplay attachment={msg.attachment} isCurrentUser={isCurrentUser} />}
-                            
-                            <p className={`text-xs mt-1 ${isCurrentUser ? 'text-gray-800/70' : 'text-gray-400'} text-right`}>
-                                {msg.editedAt && <span className='italic mr-1'>(editado)</span>}
-                                {new Date(msg.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                        </div>
-                        
-                        {!isBotMessage && !isEditing && isCurrentUser && (
-                            <div className={`absolute top-0 ${isCurrentUser ? 'left-0 -translate-x-full mr-2' : 'right-0 translate-x-full ml-2'} -mt-1 flex items-center gap-1 bg-coal-black p-1 rounded-full border border-granite-gray/20 opacity-0 group-hover:opacity-100 transition-opacity z-10`}>
-                                <button onClick={() => setEditingMessage({ id: msg.id, text: msg.text })} className="p-1 hover:bg-granite-gray/20 rounded-full"><Edit size={16} /></button>
-                                <button onClick={() => setMessageToDelete(msg)} className="p-1 hover:bg-granite-gray/20 rounded-full"><Trash2 size={16} /></button>
-                            </div>
-                        )}
-                        {!isBotMessage && !isEditing && !isCurrentUser && (
-                            <div className={`absolute top-0 ${isCurrentUser ? 'left-0 -translate-x-full mr-2' : 'right-0 translate-x-full ml-2'} -mt-1 flex items-center gap-1 bg-coal-black p-1 rounded-full border border-granite-gray/20 opacity-0 group-hover:opacity-100 transition-opacity z-10`}>
-                                <button onClick={() => setShowEmojiPickerFor(showEmojiPickerFor === msg.id ? null : msg.id)} className="p-1 hover:bg-granite-gray/20 rounded-full"><Smile size={16} /></button>
-                                <button onClick={() => setReplyingTo(msg)} className="p-1 hover:bg-granite-gray/20 rounded-full"><CornerDownRight size={16} /></button>
-                            </div>
-                        )}
+                            {!isBotMessage && !isEditing && !isCurrentUser && (
+                                <div className={`absolute top-0 ${isCurrentUser ? 'left-0 -translate-x-full mr-2' : 'right-0 translate-x-full ml-2'} -mt-1 flex items-center gap-1 bg-coal-black p-1 rounded-full border border-granite-gray/20 opacity-0 group-hover:opacity-100 transition-opacity z-10`}>
+                                    <button onClick={() => setShowEmojiPickerFor(showEmojiPickerFor === msg.id ? null : msg.id)} className="p-1 hover:bg-granite-gray/20 rounded-full"><Smile size={16} /></button>
+                                    <button onClick={() => setReplyingTo(msg)} className="p-1 hover:bg-granite-gray/20 rounded-full"><CornerDownRight size={16} /></button>
+                                </div>
+                            )}
 
-                        {showEmojiPickerFor === msg.id && (
-                            <div className={`absolute top-0 ${isCurrentUser ? 'left-auto right-full mr-2' : 'left-full ml-2'} mt-8 flex items-center gap-1 bg-coal-black p-1 rounded-full border border-granite-gray/20 shadow-lg z-10`}>
-                                {EMOJI_OPTIONS.map(emoji => (
-                                    <button key={emoji} onClick={() => { toggleReaction(msg.channelId, msg.id, emoji); setShowEmojiPickerFor(null); }} className="p-1.5 text-lg rounded-full hover:bg-granite-gray/20 transition-transform transform active:scale-90">
-                                        {emoji}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                            <div className={`mt-1.5 flex items-center gap-1 flex-wrap ${isCurrentUser ? 'justify-end' : ''}`}>
-                                {Object.entries(msg.reactions).map(([emoji, userIds]) => {
-                                    const reactionUserIds = userIds as string[];
-                                    if (reactionUserIds.length === 0) return null;
-                                    const isReactedByCurrentUser = reactionUserIds.includes(currentUser.id);
-                                    return (
-                                        <button key={emoji} onClick={() => toggleReaction(msg.channelId, msg.id, emoji)} className={`px-2 py-0.5 rounded-full text-xs flex items-center gap-1 transition-colors ${isReactedByCurrentUser ? 'bg-cadmium-yellow/30 border border-cadmium-yellow' : 'bg-granite-gray/20 border border-transparent hover:border-granite-gray'}`}>
-                                            <span>{emoji}</span>
-                                            <span className="font-semibold">{reactionUserIds.length}</span>
+                            {showEmojiPickerFor === msg.id && (
+                                <div className={`absolute top-0 ${isCurrentUser ? 'left-auto right-full mr-2' : 'left-full ml-2'} mt-8 flex items-center gap-1 bg-coal-black p-1 rounded-full border border-granite-gray/20 shadow-lg z-10`}>
+                                    {EMOJI_OPTIONS.map(emoji => (
+                                        <button key={emoji} onClick={() => { toggleReaction(msg.channelId, msg.id, emoji); setShowEmojiPickerFor(null); }} className="p-1.5 text-lg rounded-full hover:bg-granite-gray/20 transition-transform transform active:scale-90">
+                                            {emoji}
                                         </button>
-                                    );
-                                })}
-                            </div>
-                        )}
+                                    ))}
+                                </div>
+                            )}
+
+                            {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                                <div className={`mt-1.5 flex items-center gap-1 flex-wrap ${isCurrentUser ? 'justify-end' : ''}`}>
+                                    {Object.entries(msg.reactions).map(([emoji, userIds]) => {
+                                        const reactionUserIds = userIds as string[];
+                                        if (reactionUserIds.length === 0) return null;
+                                        const isReactedByCurrentUser = reactionUserIds.includes(currentUser.id);
+                                        return (
+                                            <button key={emoji} onClick={() => toggleReaction(msg.channelId, msg.id, emoji)} className={`px-2 py-0.5 rounded-full text-xs flex items-center gap-1 transition-colors ${isReactedByCurrentUser ? 'bg-cadmium-yellow/30 border border-cadmium-yellow' : 'bg-granite-gray/20 border border-transparent hover:border-granite-gray'}`}>
+                                                <span>{emoji}</span>
+                                                <span className="font-semibold">{reactionUserIds.length}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                    {msg.suggestion && !isEditing && (
+                        <SuggestedActionDisplay
+                            suggestion={msg.suggestion}
+                            onConfirm={() => executeSuggestedAction(msg.id, msg.suggestion!)}
+                            onDismiss={() => dismissSuggestedAction(msg.id)}
+                        />
+                    )}
+                 </div>
             );
         });
 
         return components;
-    }, [currentMessages, currentUser, messages, editingMessage, showEmojiPickerFor, searchTerm]);
+    }, [currentMessages, currentUser, messages, editingMessage, showEmojiPickerFor, searchTerm, executeSuggestedAction, dismissSuggestedAction]);
 
     return (
         <>

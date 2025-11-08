@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode, useMemo } from 'react';
-import { ServiceOrder, User, AppNotification, ActivityLogEntry, OrderStatus, UserRole, ActivityActionType, NotificationColorType, Task, Comment, CommercialQuote, QuoteStatus, CatalogServiceItem, KanbanFilters, KanbanView, KanbanColumn, CustomFieldDefinition, ProofImage, ProofComment, Invoice, InvoiceStatus, FixedCost, VariableCost, RevenueEntry, ChatChannel, ChatMessage, ChannelType, ChatAttachment, Priority } from '../types';
+import { ServiceOrder, User, AppNotification, ActivityLogEntry, OrderStatus, UserRole, ActivityActionType, NotificationColorType, Task, Comment, CommercialQuote, QuoteStatus, CatalogServiceItem, KanbanFilters, KanbanView, KanbanColumn, CustomFieldDefinition, ProofImage, ProofComment, Invoice, InvoiceStatus, FixedCost, VariableCost, RevenueEntry, ChatChannel, ChatMessage, ChannelType, ChatAttachment, Priority, ActionableIntent } from '../types';
 import { DEFAULT_KANBAN_COLUMNS, DEFAULT_CUSTOM_FIELDS } from '../constants';
 import { MOCK_USERS, MOCK_ORDERS, MOCK_ACTIVITY_LOG, MOCK_QUOTES, MOCK_CATALOG_SERVICES, MOCK_FIXED_COSTS, MOCK_VARIABLE_COSTS, MOCK_REVENUE_ENTRIES, MOCK_CHAT_CHANNELS, MOCK_CHAT_MESSAGES } from '../mockData'; // Import mock data
+import { getBotResponse, analyzeMessageForIntent } from '../services/geminiService';
 
 interface TypingIndicator {
   userName: string;
@@ -109,6 +110,8 @@ interface AppContextType {
   editMessage: (messageId: string, newText: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   setUserTyping: (channelId: string) => void;
+  executeSuggestedAction: (messageId: string, intent: ActionableIntent) => Promise<void>;
+  dismissSuggestedAction: (messageId: string) => void;
 
 }
 
@@ -313,6 +316,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Keep the list of users so we can log back in
   }, []);
   
+  
+  useEffect(() => {
+    // Persist chat messages to local storage whenever they change
+    if (messages.length > 0 && currentUser) {
+        localStorage.setItem('dz-chat-messages', JSON.stringify(messages));
+    }
+  }, [messages, currentUser]);
+
 
   // --- MOCK Calendar Sync ---
   const syncOrderToCalendar = useCallback((order: ServiceOrder, action: 'create' | 'update' | 'delete') => {
@@ -923,177 +934,88 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setRevenueEntries(prev => prev.filter(r => r.id !== entryId));
   }, []);
 
-  const sendBotMessage = useCallback((channelId: string, text: string) => {
-    const botUser = users.find(u => u.id === 'user-bot');
-    if (!botUser) return;
-
-    const botMessage: ChatMessage = {
-        id: `msg-${Date.now()}-bot`,
-        channelId,
-        senderId: botUser.id,
-        senderName: botUser.name,
-        senderPicture: botUser.picture,
-        text,
-        timestamp: new Date().toISOString(),
-    };
-
-    setMessages(prevMessages => {
-        const updatedMessages = [...prevMessages, botMessage];
-        localStorage.setItem('dz-chat-messages', JSON.stringify(updatedMessages));
-        return updatedMessages;
-    });
-    
-    setChannels(prevChannels => {
-        const updatedChannels = prevChannels.map(c => 
-            c.id === channelId ? { ...c, lastMessage: botMessage, unreadCount: (c.unreadCount || 0) + 1 } : c
-        );
-        localStorage.setItem('dz-chat-channels', JSON.stringify(updatedChannels));
-        return updatedChannels;
-    });
-    
-    addNotification({ message: `Nova mensagem de DZ Bot`, type: NotificationColorType.Success });
-  }, [users, addNotification]);
-
-  const handleBotCommand = useCallback((channelId: string, commandText: string) => {
-    const [command, ...args] = commandText.trim().substring(1).split(/\s+/);
-    let responseText = `Comando **/${command}** não reconhecido. Digite **/help** para ver a lista de comandos.`;
-
-    switch (command.toLowerCase()) {
-        case 'help':
-            responseText = `Comandos disponíveis:\n` +
-                         `- **/status [Nº da OS]** - Verifica o status de uma OS. Ex: /status OS-004\n` +
-                         `- **/search [termo]** - Busca OSs por cliente ou número. Ex: /search Nike\n` +
-                         `- **/help** - Mostra esta ajuda.`;
-            break;
-        
-        case 'status':
-            const orderNumber = args[0];
-            if (!orderNumber) {
-                responseText = 'Por favor, especifique o número da OS. Ex: **/status OS-004**';
-            } else {
-                const order = orders.find(o => o.orderNumber.toLowerCase() === orderNumber.toLowerCase());
-                if (order) {
-                    const column = kanbanColumns.find(c => c.status === order.status);
-                    responseText = `**Status da OS ${order.orderNumber} (${order.client}):**\n` +
-                                 `- **Status Atual:** ${column?.title || order.status}\n` +
-                                 `- **Responsável:** ${order.responsible || 'N/A'}\n` +
-                                 `- **Previsão de Entrega:** ${order.expectedDeliveryDate ? new Date(order.expectedDeliveryDate).toLocaleDateString('pt-BR') : 'N/A'}`;
-                } else {
-                    responseText = `OS "**${orderNumber}**" não encontrada.`;
-                }
-            }
-            break;
-
-        case 'search':
-            const searchTerm = args.join(' ');
-            if (!searchTerm) {
-                responseText = 'Por favor, especifique um termo para buscar. Ex: **/search Nike**';
-            } else {
-                const results = orders.filter(o => 
-                    o.client.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                    o.orderNumber.toLowerCase().includes(searchTerm.toLowerCase())
-                );
-                if (results.length > 0) {
-                    responseText = `Encontrei **${results.length}** OS(s) para "**${searchTerm}**":\n` +
-                                   results.slice(0, 5).map(o => `- **${o.orderNumber}** (${o.client}): ${kanbanColumns.find(c=>c.status === o.status)?.title || o.status}`).join('\n');
-                    if (results.length > 5) responseText += `\n...e mais ${results.length - 5}.`;
-                } else {
-                    responseText = `Nenhuma OS encontrada para "**${searchTerm}**".`;
-                }
-            }
-            break;
-    }
-    
-    setTimeout(() => sendBotMessage(channelId, responseText), 1000);
-
-  }, [orders, kanbanColumns, sendBotMessage]);
-
-
   // --- Chat Functions ---
   const sendMessage = useCallback(async (channelId: string, text: string, attachmentFile?: File, replyTo?: string) => {
     if (!currentUser) return;
 
     let attachment: ChatAttachment | undefined = undefined;
     if (attachmentFile) {
-        // Create a data URL for the mock implementation
         const url = await new Promise<string>((resolve) => {
             const reader = new FileReader();
             reader.onload = (e) => resolve(e.target?.result as string);
             reader.readAsDataURL(attachmentFile);
         });
-        attachment = {
-            name: attachmentFile.name,
-            type: attachmentFile.type,
-            size: attachmentFile.size,
-            url: url,
-        };
+        attachment = { name: attachmentFile.name, type: attachmentFile.type, size: attachmentFile.size, url: url };
     }
 
     const mentionRegex = /@([\w\s()]+)/g;
     const mentions = [...text.matchAll(mentionRegex)];
     const mentionedUserIds: string[] = [];
-
-    if (mentions.length > 0) {
-      mentions.forEach(match => {
+    mentions.forEach(match => {
         const userName = match[1].trim();
         const mentionedUser = users.find(u => u.name === userName);
-        if (mentionedUser) {
-          mentionedUserIds.push(mentionedUser.id);
-        }
-      });
-    }
+        if (mentionedUser) mentionedUserIds.push(mentionedUser.id);
+    });
 
     const newMessage: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      channelId,
-      senderId: currentUser.id,
-      senderName: currentUser.name,
-      senderPicture: currentUser.picture,
-      text,
-      timestamp: new Date().toISOString(),
-      attachment,
-      ...(replyTo && { replyTo }),
-      mentions: mentionedUserIds.length > 0 ? mentionedUserIds : undefined,
+      id: `msg-${Date.now()}`, channelId, senderId: currentUser.id, senderName: currentUser.name, senderPicture: currentUser.picture,
+      text, timestamp: new Date().toISOString(), attachment, ...(replyTo && { replyTo }), mentions: mentionedUserIds.length > 0 ? mentionedUserIds : undefined,
     };
+    
+    setMessages(prev => [...prev, newMessage]);
 
-    const updatedMessages = [...messages, newMessage];
-    setMessages(updatedMessages);
-    localStorage.setItem('dz-chat-messages', JSON.stringify(updatedMessages));
-
-    const updatedChannels = channels.map(c => c.id === channelId ? { ...c, lastMessage: newMessage } : c);
-    setChannels(updatedChannels);
-    localStorage.setItem('dz-chat-channels', JSON.stringify(updatedChannels));
-
-    const channel = channels.find(c => c.id === channelId);
-    if (channel) {
-        channel.members.forEach(memberId => {
-            if (memberId !== currentUser.id && memberId !== 'user-bot') {
-                 addNotification({ message: `Nova mensagem de ${currentUser.name}`, details: text || 'Enviou um anexo', type: NotificationColorType.Success });
-            }
-        });
-
-        mentionedUserIds.forEach(userId => {
-            if (userId !== currentUser.id) {
-                const channelName = channel.type === ChannelType.Private ? currentUser.name : channel.name;
-                addNotification({
-                    message: `${currentUser.name} mencionou você`,
-                    details: `em #${channelName}: "${text.substring(0, 50)}..."`,
-                    type: NotificationColorType.Warning,
-                });
-            }
-        });
+    const botMention = '@DZ Bot';
+    const isBotMentioned = text.toLowerCase().includes(botMention.toLowerCase());
+    
+    // Run reactive bot OR proactive analysis, but not both.
+    if (isBotMentioned) {
+        // --- REACTIVE BOT LOGIC ---
+        const command = text.replace(new RegExp(botMention, 'ig'), '').trim();
+        const botUser = users.find(u => u.id === 'user-bot');
+        if (!botUser) return;
         
-        if (channel.members.includes('user-bot')) {
-            if (text.trim().startsWith('/')) {
-                handleBotCommand(channelId, text.trim());
-            } else {
-                setTimeout(() => {
-                    sendBotMessage(channelId, `Olá! Eu sou um bot. Para interagir comigo, use comandos como **/status OS-001** ou digite **/help** para ver todas as opções.`);
-                }, 1500);
-            }
+        const thinkingMessage: ChatMessage = {
+            id: `msg-thinking-${Date.now()}`, channelId, senderId: botUser.id, senderName: botUser.name, senderPicture: botUser.picture,
+            text: '', status: 'thinking', timestamp: new Date().toISOString(),
+        };
+        setMessages(prev => [...prev, thinkingMessage]);
+
+        try {
+            const botResponseText = await getBotResponse(command, { orders, quotes, kanbanColumns });
+            const botResponseMessage: ChatMessage = {
+                ...thinkingMessage, id: `msg-bot-${Date.now()}`, text: botResponseText, status: undefined,
+            };
+            setMessages(prev => [...prev.filter(m => m.id !== thinkingMessage.id), botResponseMessage]);
+            const updatedChannels = channels.map(c => c.id === channelId ? { ...c, lastMessage: botResponseMessage } : c);
+            setChannels(updatedChannels);
+            localStorage.setItem('dz-chat-channels', JSON.stringify(updatedChannels));
+        } catch (error) {
+            console.error("Bot error:", error);
+            const errorMessage: ChatMessage = {
+                ...thinkingMessage, id: `msg-bot-error-${Date.now()}`, text: 'Desculpe, ocorreu um erro ao processar seu pedido.', status: undefined,
+            };
+            setMessages(prev => [...prev.filter(m => m.id !== thinkingMessage.id), errorMessage]);
         }
+    } else if (!attachmentFile) {
+        // --- PROACTIVE SUGGESTION LOGIC (only for text messages) ---
+        (async () => {
+            const suggestion = await analyzeMessageForIntent(text, { orders, quotes, kanbanColumns });
+            if (suggestion) {
+                setMessages(prev => prev.map(m => 
+                    m.id === newMessage.id ? { ...m, suggestion } : m
+                ));
+            }
+        })();
     }
-  }, [currentUser, channels, messages, addNotification, users, handleBotCommand, sendBotMessage]);
+    
+    // Update last message in channel list if it's not a bot interaction
+    if (!isBotMentioned) {
+        const updatedChannels = channels.map(c => c.id === channelId ? { ...c, lastMessage: newMessage } : c);
+        setChannels(updatedChannels);
+        localStorage.setItem('dz-chat-channels', JSON.stringify(updatedChannels));
+    }
+
+  }, [currentUser, channels, addNotification, users, orders, quotes, kanbanColumns]);
   
   const createChannel = useCallback(async (name: string, members: string[], type: ChannelType): Promise<string | null> => {
     if (type === ChannelType.Private) {
@@ -1148,7 +1070,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 return msg;
             });
             setMessages(updatedMessages);
-            localStorage.setItem('dz-chat-messages', JSON.stringify(updatedMessages));
             resolve();
         }, 100); // simulate quick network latency
     });
@@ -1163,7 +1084,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 : msg
             );
             setMessages(updatedMessages);
-            localStorage.setItem('dz-chat-messages', JSON.stringify(updatedMessages));
             resolve();
         }, 100);
     });
@@ -1182,7 +1102,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             });
 
             setMessages(updatedMessages);
-            localStorage.setItem('dz-chat-messages', JSON.stringify(updatedMessages));
 
             if (channelIdOfDeletedMessage) {
                 const channelMessages = updatedMessages
@@ -1243,6 +1162,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }, 1500);
       return () => clearInterval(interval);
   }, []);
+  
+  const executeSuggestedAction = useCallback(async (messageId: string, intent: ActionableIntent) => {
+    if (intent.intent === 'CHANGE_STATUS' && intent.parameters.orderNumber && intent.parameters.newStatus) {
+        const orderToUpdate = orders.find(o => o.orderNumber === intent.parameters.orderNumber);
+        if (orderToUpdate) {
+            await handleStatusChange(orderToUpdate.id, intent.parameters.newStatus);
+        }
+    }
+    if (intent.intent === 'CREATE_TASK' && intent.parameters.orderNumber && intent.parameters.tasks) {
+        const orderToUpdate = orders.find(o => o.orderNumber === intent.parameters.orderNumber);
+        if (orderToUpdate) {
+            for (const taskText of intent.parameters.tasks) {
+                await addTask(orderToUpdate.id, taskText);
+            }
+            addNotification({ message: `${intent.parameters.tasks.length} tarefa(s) adicionada(s) à OS ${orderToUpdate.orderNumber}.`, type: NotificationColorType.Success, orderId: orderToUpdate.id });
+        }
+    }
+    // Dismiss the suggestion after executing
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, suggestion: undefined } : m));
+  }, [orders, handleStatusChange, addTask, addNotification]);
+
+  const dismissSuggestedAction = useCallback((messageId: string) => {
+      setMessages(prev => prev.map(m => m.id === messageId ? { ...m, suggestion: undefined } : m));
+  }, []);
 
 
   const value: AppContextType = {
@@ -1268,6 +1211,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addVariableCost, updateVariableCost, deleteVariableCost,
     addRevenueEntry, updateRevenueEntry, deleteRevenueEntry,
     sendMessage, createChannel, toggleReaction, editMessage, deleteMessage, setUserTyping,
+    executeSuggestedAction, dismissSuggestedAction,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

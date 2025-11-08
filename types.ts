@@ -281,6 +281,17 @@ export interface ChatAttachment {
   size: number; // in bytes
 }
 
+// --- AI Assistant Types ---
+export interface ActionableIntent {
+  intent: 'CHANGE_STATUS' | 'CREATE_TASK';
+  parameters: {
+    orderNumber?: string;
+    newStatus?: string;
+    tasks?: string[];
+  };
+  message: string; // The confirmation message for the user
+}
+
 export interface ChatMessage {
   id: string;
   channelId: string;
@@ -293,7 +304,9 @@ export interface ChatMessage {
   reactions?: { [emoji: string]: string[] }; // emoji: [userId, userId, ...]
   replyTo?: string; // messageId of the message being replied to
   mentions?: string[]; // Array of user IDs
+  status?: 'thinking';
   editedAt?: string; // ISO String for when the message was last edited
+  suggestion?: ActionableIntent;
 }
 
 export interface ChatChannel {

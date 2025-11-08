@@ -1,4 +1,4 @@
-import { ServiceOrder, OrderStatus, DailySummaryData } from '../types';
+import { ServiceOrder, OrderStatus, DailySummaryData, CommercialQuote, KanbanColumn, ActionableIntent } from '../types';
 
 // The GoogleGenAI import is removed to prevent loading errors.
 
@@ -95,4 +95,131 @@ export const generateDailySummaryData = (orders: ServiceOrder[], userName: strin
         stalled: stalledOrders,
         dueToday
     };
+};
+
+// --- [NEW] Gemini Service for Chat Bot ---
+
+interface BotContext {
+    orders: ServiceOrder[];
+    quotes: CommercialQuote[];
+    kanbanColumns: KanbanColumn[];
+}
+
+/**
+ * Simulates a call to the Gemini API with function calling for the chat bot.
+ */
+export const getBotResponse = async (message: string, context: BotContext): Promise<string> => {
+    console.log(`[MOCK Gemini Service] Received command: "${message}"`);
+    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network latency
+
+    const lowerMessage = message.toLowerCase();
+
+    // 1. Function Call Simulation: Get Order Status
+    if (lowerMessage.includes('status') && /os-\d+/.test(lowerMessage)) {
+        const orderNumber = lowerMessage.match(/os-\d+/)?.[0].toUpperCase();
+        const order = context.orders.find(o => o.orderNumber === orderNumber);
+        
+        if (order) {
+            const column = context.kanbanColumns.find(c => c.status === order.status);
+            return `**Status da OS ${order.orderNumber} (${order.client}):**\n` +
+                   `- **Status Atual:** ${column?.title || order.status}\n` +
+                   `- **Responsável:** ${order.responsible || 'N/A'}\n` +
+                   `- **Previsão de Entrega:** ${order.expectedDeliveryDate ? new Date(order.expectedDeliveryDate).toLocaleDateString('pt-BR') : 'N/A'}`;
+        }
+        return `OS "**${orderNumber}**" não encontrada.`;
+    }
+
+    // 2. Function Call Simulation: Find Quotes for a client
+    if (lowerMessage.includes('orçamento') || lowerMessage.includes('orcamento')) {
+        const clientName = lowerMessage.replace(/orçamentos? para/i, '').replace(/orçamentos?/i, '').trim();
+        const results = context.quotes.filter(q => q.client.toLowerCase().includes(clientName.toLowerCase()));
+
+        if (results.length > 0) {
+            return `Encontrei **${results.length}** orçamento(s) para "**${clientName}**":\n` +
+                   results.slice(0, 5).map(q => `- **${q.quoteNumber}** (${q.status}): ${q.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`).join('\n');
+        }
+        return `Nenhum orçamento encontrado para "**${clientName}**".`;
+    }
+
+    // 3. Function Call Simulation: Create Tasks
+    if (lowerMessage.startsWith('crie') && (lowerMessage.includes('tarefa') || lowerMessage.includes('task'))) {
+        const osMatch = lowerMessage.match(/os-\d+/);
+        if (osMatch) {
+            const orderNumber = osMatch[0].toUpperCase();
+            const order = context.orders.find(o => o.orderNumber === orderNumber);
+            if (order) {
+                const tasksText = lowerMessage.split(':')[1];
+                const tasks = tasksText ? tasksText.split(',').map(t => t.trim()) : [];
+                if (tasks.length > 0) {
+                    // In a real scenario, you would call `appContext.addTask` here
+                    return `Ok, simulando a criação de **${tasks.length}** tarefas para a **${orderNumber}**:\n` +
+                           tasks.map(t => `- [ ] ${t}`).join('\n');
+                }
+            } else {
+                return `Não encontrei a OS **${orderNumber}** para adicionar as tarefas.`;
+            }
+        }
+    }
+
+    // 4. Fallback "Generative" response
+    return 'Desculpe, não entendi o comando. Tente algo como:\n' +
+           '- "**status da OS-001**"\n' +
+           '- "**orçamentos para a Nike**"\n' +
+           '- "**crie tarefas para a OS-005: tarefa 1, tarefa 2**"';
+};
+
+// --- [NEW] Gemini Service for Proactive Suggestions ---
+
+/**
+ * Simulates analyzing a message for actionable intents.
+ */
+export const analyzeMessageForIntent = async (message: string, context: BotContext): Promise<ActionableIntent | null> => {
+    console.log(`[MOCK Gemini Intent Analysis] Analyzing: "${message}"`);
+    await new Promise(resolve => setTimeout(resolve, 800)); // Simulate analysis latency
+
+    const lowerMessage = message.toLowerCase();
+    
+    // Regex to find OS numbers (e.g., "os-004", "OS-123")
+    const osMatch = lowerMessage.match(/os-\d+/);
+    const orderNumber = osMatch ? osMatch[0].toUpperCase() : null;
+
+    if (!orderNumber) return null;
+
+    const order = context.orders.find(o => o.orderNumber === orderNumber);
+    if (!order) return null;
+    
+    // Intent 1: Change Status
+    const statusKeywords = ['finalizei', 'terminei', 'concluí', 'entreguei', 'acabei de finalizar'];
+    if (statusKeywords.some(kw => lowerMessage.includes(kw))) {
+        const currentStatusIndex = context.kanbanColumns.findIndex(c => c.status === order.status);
+        // Can move if not the last or second-to-last column ('Entregue')
+        const canMove = currentStatusIndex > -1 && currentStatusIndex < context.kanbanColumns.length - 2;
+        
+        if (canMove) {
+            const nextStatus = context.kanbanColumns[currentStatusIndex + 1];
+            return {
+                intent: 'CHANGE_STATUS',
+                parameters: { orderNumber: order.orderNumber, newStatus: nextStatus.status },
+                message: `Deseja mover a ${order.orderNumber} para "${nextStatus.title}"?`
+            };
+        }
+    }
+
+    // Intent 2: Create Task
+    const taskKeywords = ['adicionar tarefa', 'crie a tarefa', 'precisamos fazer'];
+    if (taskKeywords.some(kw => lowerMessage.includes(kw)) && lowerMessage.includes(':')) {
+        const tasksText = lowerMessage.split(':')[1];
+        if (tasksText) {
+            const tasks = tasksText.split(',').map(t => t.trim()).filter(Boolean);
+            if (tasks.length > 0) {
+                 return {
+                    intent: 'CREATE_TASK',
+                    parameters: { orderNumber, tasks },
+                    message: `Adicionar ${tasks.length} tarefa(s) para a ${orderNumber}?`
+                };
+            }
+        }
+    }
+
+    return null;
 };
