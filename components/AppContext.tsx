@@ -63,6 +63,9 @@ interface AppContextType {
   saveKanbanView: (name: string) => void;
   applyKanbanView: (viewId: string) => void;
   deleteKanbanView: (viewId: string) => void;
+  clearFilters: () => void; // Added for Daily Summary
+  setIsStalledFilterActive: (isActive: boolean) => void; // Added for Daily Summary
+
   
   addUser: (user: Omit<User, 'id'>) => Promise<void>;
   updateUser: (user: User) => Promise<void>;
@@ -178,6 +181,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // --- State for Kanban Filters ---
   const [kanbanFilters, setKanbanFilters] = useState<KanbanFilters>({});
   const [kanbanViews, setKanbanViews] = useState<KanbanView[]>([]);
+  const [isStalledFilterActive, setIsStalledFilterActive] = useState(false);
+
 
   useEffect(() => {
     try {
@@ -379,16 +384,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const updateOrder = useCallback(async (updatedOrderData: ServiceOrder) => {
     if (!currentUser) return;
     
-    // This is now an optimistic update, so we don't set loading state.
-    // The auto-save indicator in the modal handles visual feedback.
-    
     const originalOrder = orders.find(o => o.id === updatedOrderData.id);
     if (!originalOrder) return;
     
     const hasStatusChanged = originalOrder.status !== updatedOrderData.status;
+
     const updatedOrder = {
         ...updatedOrderData,
-        lastStatusUpdate: hasStatusChanged ? new Date().toISOString() : updatedOrderData.lastStatusUpdate
+        lastStatusUpdate: new Date().toISOString()
     };
     
     setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
@@ -499,7 +502,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                         timestamp: new Date().toISOString(),
                     };
                     const updatedComments = [...(o.comments || []), newComment];
-                    return { ...o, comments: updatedComments };
+                    return { ...o, comments: updatedComments, lastStatusUpdate: new Date().toISOString() };
                 }
                 return o;
             }));
@@ -512,8 +515,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // --- Filter Management ---
   const updateKanbanFilters = useCallback((newFilters: Partial<KanbanFilters>) => {
+    setIsStalledFilterActive(false); // Any new filter change disables the stalled filter
     setKanbanFilters(prev => ({ ...prev, ...newFilters }));
   }, []);
+  
+  const clearFilters = useCallback(() => {
+    setKanbanFilters({});
+    setIsStalledFilterActive(false);
+  }, []);
+
 
   const saveKanbanView = useCallback((name: string) => {
     const newView: KanbanView = { id: `view-${Date.now()}`, name, filters: kanbanFilters };
@@ -525,14 +535,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const applyKanbanView = useCallback((viewId: string) => {
     if (viewId === 'default') {
-      setKanbanFilters({});
+      clearFilters();
       return;
     }
     const view = kanbanViews.find(v => v.id === viewId);
     if (view) {
       setKanbanFilters(view.filters);
     }
-  }, [kanbanViews]);
+  }, [kanbanViews, clearFilters]);
 
   const deleteKanbanView = useCallback((viewId: string) => {
     const updatedViews = kanbanViews.filter(v => v.id !== viewId);
@@ -549,6 +559,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   
   const filteredOrders = useMemo(() => {
      let tempOrders = orders.filter(o => o.status !== 'Entregue');
+
+     if (isStalledFilterActive) {
+        const twoDaysAgo = new Date(new Date().getTime() - (2 * 24 * 60 * 60 * 1000));
+        return tempOrders.filter(o => new Date(o.lastStatusUpdate) < twoDaysAgo);
+     }
 
      if (Object.keys(kanbanFilters).length > 0) {
         tempOrders = tempOrders.filter(o => {
@@ -582,7 +597,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
      }
     
     return tempOrders;
-  }, [orders, kanbanFilters]);
+  }, [orders, kanbanFilters, isStalledFilterActive]);
 
   const addTask = useCallback(async (orderId: string, taskText: string) => {
     const order = orders.find(o => o.id === orderId);
@@ -595,7 +610,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (o.id === orderId) {
               const newTask: Task = { id: `task-${Date.now()}`, text: taskText, completed: false };
               const updatedTasks = [...(o.tasks || []), newTask];
-              return { ...o, tasks: updatedTasks };
+              return { ...o, tasks: updatedTasks, lastStatusUpdate: new Date().toISOString() };
             }
             return o;
           }),
@@ -625,7 +640,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                     addActivityLogEntry(ActivityActionType.TaskComplete, order, updatedTask.text);
                   }
               }
-              return { ...o, tasks: updatedTasks, progress };
+              return { ...o, tasks: updatedTasks, progress, lastStatusUpdate: new Date().toISOString() };
             }
             return o;
           }),
@@ -641,7 +656,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setOrders(prevOrders => prevOrders.map(o => {
                 if (o.id === orderId) {
                     const updatedTasks = (o.tasks || []).filter(t => t.id !== taskId);
-                    return { ...o, tasks: updatedTasks };
+                    return { ...o, tasks: updatedTasks, lastStatusUpdate: new Date().toISOString() };
                 }
                 return o;
             }));
@@ -1240,7 +1255,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     kanbanFilters, kanbanViews,
     login, logout, setCurrentPage, addOrder, updateOrder, deleteOrder,
     handleStatusChange, addNotification, removeNotification,
-    updateKanbanFilters, saveKanbanView, applyKanbanView, deleteKanbanView,
+    updateKanbanFilters, saveKanbanView, applyKanbanView, deleteKanbanView, clearFilters, setIsStalledFilterActive,
     addUser, updateUser, deleteUser,
     addTask, updateTask, deleteTask, addComment,
     addQuote, updateQuote, deleteQuote,

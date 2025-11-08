@@ -10,7 +10,7 @@ interface EditOrderModalProps {
 }
 
 type ModalTab = 'details' | 'tasks' | 'comments' | 'portal' | 'files' | 'faturamento';
-type AutoSaveStatus = 'idle' | 'typing' | 'saving' | 'saved' | 'error';
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 const TabButton: React.FC<{ icon: React.ReactNode, label: string, isActive: boolean, onClick: () => void }> = ({ icon, label, isActive, onClick }) => (
   <button
@@ -64,10 +64,8 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
   const [newTaskText, setNewTaskText] = useState('');
   const [newCommentText, setNewCommentText] = useState('');
   const [shareLink, setShareLink] = useState('');
-  const [autoSaveStatus, setAutoSaveStatus] = useState<AutoSaveStatus>('idle');
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const commentListRef = useRef<HTMLDivElement>(null);
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const savedStateRef = useRef<ServiceOrder>(currentOrderFromContext);
 
   const isAdmin = currentUser?.role === UserRole.Admin;
   
@@ -78,50 +76,17 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
   }, [currentOrderFromContext.shareableToken]);
 
   useEffect(() => {
-    // Keep the form data in sync if the context provides a newer version of the order,
-    // but only if the modal isn't currently saving, to avoid race conditions.
+    // Keep form data in sync if context provides a newer version of the order,
+    // but only if the modal isn't currently saving to avoid race conditions.
     const contextOrder = orders.find(o => o.id === order.id);
-    if (contextOrder && JSON.stringify(contextOrder) !== JSON.stringify(formData) && autoSaveStatus !== 'saving') {
+    if (contextOrder && JSON.stringify(contextOrder) !== JSON.stringify(formData) && saveStatus !== 'saving') {
       setFormData(contextOrder);
-      savedStateRef.current = contextOrder;
     }
   }, [orders, order.id]);
 
-  // --- Auto-Save Logic ---
-  useEffect(() => {
-    // Only auto-save if the data has actually changed from the last saved state
-    if (JSON.stringify(formData) === JSON.stringify(savedStateRef.current)) {
-      return;
-    }
-
-    setAutoSaveStatus('typing');
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
-    }
-
-    debounceTimer.current = setTimeout(async () => {
-      setAutoSaveStatus('saving');
-      try {
-        await updateOrder(formData);
-        savedStateRef.current = formData; // Update the reference state to the new saved state
-        setAutoSaveStatus('saved');
-        setTimeout(() => setAutoSaveStatus('idle'), 2000); // Hide the 'saved' message after a bit
-      } catch (error) {
-        console.error("Auto-save failed:", error);
-        setAutoSaveStatus('error');
-      }
-    }, 1500); // 1.5-second debounce delay
-
-    // Cleanup on unmount
-    return () => {
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-    };
-  }, [formData, updateOrder]);
-  
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
+    setSaveStatus('idle'); // Any change marks the form as having unsaved changes
     
     if (type === 'date') {
         const date = new Date(value);
@@ -136,6 +101,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
   };
 
   const handleCustomFieldChange = (fieldId: string, value: any, type: CustomFieldType) => {
+    setSaveStatus('idle');
     let processedValue = value;
     if (type === 'number') {
         processedValue = parseFloat(value as string) || 0;
@@ -154,6 +120,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
   };
 
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSaveStatus('idle');
     const newStatus = e.target.value as OrderStatus;
     const deliveredColumn = kanbanColumns.find(c => c.status === 'Entregue');
     const columnsForProgress = kanbanColumns.filter(c => c.status !== 'Entregue');
@@ -174,16 +141,16 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
     }));
   };
 
-  const handleSubmitAndClose = async (e: React.FormEvent) => {
+  const handleSaveAndClose = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
-    }
-    // If there were changes, save them immediately before closing
-    if (JSON.stringify(formData) !== JSON.stringify(savedStateRef.current)) {
+    setSaveStatus('saving');
+    try {
         await updateOrder(formData);
+        onClose();
+    } catch (error) {
+        console.error("Save failed:", error);
+        setSaveStatus('error');
     }
-    onClose();
   };
 
   const handleAddTask = async () => {
@@ -236,18 +203,20 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
     return { profit, margin };
   }, [formData.value, formData.costs]);
 
-  const renderAutoSaveIndicator = () => {
-    switch (autoSaveStatus) {
+  const renderSaveIndicator = () => {
+    const hasUnsavedChanges = JSON.stringify(formData) !== JSON.stringify(currentOrderFromContext);
+    switch (saveStatus) {
         case 'saving':
             return <div className="flex items-center text-sm text-yellow-400"><Loader size={16} className="animate-spin mr-2" /> Salvando...</div>;
-        case 'saved':
-            return <div className="flex items-center text-sm text-green-400"><CheckCircle size={16} className="mr-2" /> Salvo</div>;
         case 'error':
             return <div className="flex items-center text-sm text-red-400"><AlertCircle size={16} className="mr-2" /> Erro ao salvar</div>;
-        case 'typing':
-            return <div className="flex items-center text-sm text-granite-gray-light">Alterações pendentes...</div>;
+        case 'idle':
+             if (hasUnsavedChanges) {
+                return <div className="flex items-center text-sm text-granite-gray-light">Alterações não salvas</div>;
+             }
+             return <div className="h-5"></div>; // Placeholder for layout consistency
         default:
-            return null;
+            return <div className="h-5"></div>;
     }
   };
 
@@ -263,10 +232,10 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
         <div className="flex-shrink-0 flex flex-col md:flex-row justify-between md:items-center gap-4">
              <h2 className="text-xl md:text-2xl font-bold font-display">Editar Ordem de Serviço</h2>
              <div className="flex items-center space-x-4 self-end">
-                 <div className="min-w-[150px] text-right">{renderAutoSaveIndicator()}</div>
-                 <button type="button" onClick={onClose} disabled={isDataLoading} className="px-6 py-2 rounded-lg text-sm font-bold text-gray-300 bg-granite-gray/20 hover:bg-granite-gray/40 transition-colors">Cancelar</button>
-                 <button onClick={handleSubmitAndClose} disabled={autoSaveStatus === 'saving'} className="px-6 py-2 w-28 bg-cadmium-yellow rounded-lg text-sm font-bold text-coal-black hover:brightness-110 transition-transform transform active:scale-95 disabled:opacity-50">
-                   {autoSaveStatus === 'saving' ? <Loader size={18} className="animate-spin mx-auto"/> : 'Salvar'}
+                 <div className="min-w-[150px] text-right">{renderSaveIndicator()}</div>
+                 <button type="button" onClick={onClose} className="px-6 py-2 rounded-lg text-sm font-bold text-gray-300 bg-granite-gray/20 hover:bg-granite-gray/40 transition-colors">Cancelar</button>
+                 <button onClick={handleSaveAndClose} disabled={saveStatus === 'saving'} className="px-6 py-2 w-28 bg-cadmium-yellow rounded-lg text-sm font-bold text-coal-black hover:brightness-110 transition-transform transform active:scale-95 disabled:opacity-50">
+                   {saveStatus === 'saving' ? <Loader size={18} className="animate-spin mx-auto"/> : 'Salvar'}
                  </button>
             </div>
         </div>
