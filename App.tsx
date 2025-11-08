@@ -1,30 +1,34 @@
-import React, { useState, useEffect, useRef } from 'react';
+
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header, HeaderRef } from './components/Header';
-import { KanbanBoard } from './components/KanbanBoard';
 import { AddOrderModal } from './components/AddOrderModal';
 import { EditOrderModal } from './components/EditOrderModal';
-import { GalleryPage } from './components/GalleryPage';
 import { GalleryDetailModal } from './components/GalleryDetailModal';
 import { NotificationContainer } from './components/NotificationContainer';
 import { DailySummaryModal } from './components/DailySummaryModal';
 import { ServiceOrder, UserRole, ServiceOrderTemplate, CommercialQuote } from './types';
 import { LoginPage } from './components/LoginPage';
-import { ActivityLogPage } from './components/ActivityLogPage';
-import { DashboardPage } from './components/DashboardPage';
-import { ReportsPage } from './components/ReportsPage';
-import { SettingsPage } from './components/SettingsPage';
-import { AgendaPage } from './components/AgendaPage';
 import { TemplateModal } from './components/TemplateModal';
 import { useAppContext } from './components/AppContext';
 import { Loader } from 'lucide-react';
 import { BottomNavBar } from './components/BottomNavBar';
-import { TimelinePage } from './components/TimelinePage';
-import { CommercialDashboardPage } from './components/CommercialDashboardPage';
 import { ClientPortalPage } from './components/ClientPortalPage';
-import { FinancialPage } from './components/FinancialPage';
-import { ChatPage } from './components/ChatPage';
 import { OrderDetailPanel } from './components/OrderDetailPanel';
+
+// Lazy load page components for better performance
+const DashboardPage = lazy(() => import('./components/DashboardPage').then(module => ({ default: module.DashboardPage })));
+const KanbanBoard = lazy(() => import('./components/KanbanBoard').then(module => ({ default: module.KanbanBoard })));
+const CommercialDashboardPage = lazy(() => import('./components/CommercialDashboardPage').then(module => ({ default: module.CommercialDashboardPage })));
+const AgendaPage = lazy(() => import('./components/AgendaPage').then(module => ({ default: module.AgendaPage })));
+const GalleryPage = lazy(() => import('./components/GalleryPage').then(module => ({ default: module.GalleryPage })));
+const TimelinePage = lazy(() => import('./components/TimelinePage').then(module => ({ default: module.TimelinePage })));
+const FinancialPage = lazy(() => import('./components/FinancialPage').then(module => ({ default: module.FinancialPage })));
+const ChatPage = lazy(() => import('./components/ChatPage').then(module => ({ default: module.ChatPage })));
+const ReportsPage = lazy(() => import('./components/ReportsPage').then(module => ({ default: module.ReportsPage })));
+const ActivityLogPage = lazy(() => import('./components/ActivityLogPage').then(module => ({ default: module.ActivityLogPage })));
+const SettingsPage = lazy(() => import('./components/SettingsPage').then(module => ({ default: module.SettingsPage })));
+
 
 const useMediaQuery = (query: string) => {
   const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
@@ -148,6 +152,13 @@ export default function App() {
       </div>
     );
   }
+  
+  const suspenseFallback = (
+    <div className="flex h-full w-full items-center justify-center">
+      <Loader className="animate-spin text-cadmium-yellow" size={48} />
+      <p className="ml-4 text-lg">Carregando...</p>
+    </div>
+  );
 
   return (
     <div className="flex h-screen bg-coal-black text-white font-sans">
@@ -160,21 +171,23 @@ export default function App() {
             onSelectOrderFromSearch={handleSelectOrder}
         />
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 pb-24 md:pb-6">
-          {currentPage === 'Produção' && (
-            <KanbanBoard onSelectOrder={handleSelectOrder} />
-          )}
-          {currentPage === 'Dashboard' && <DashboardPage onSelectOrder={handleSelectOrder} />}
-          {currentPage === 'Comercial' && <CommercialDashboardPage onConvertToOS={handleConvertToOS} />}
-          {currentPage === 'Agenda' && <AgendaPage onSelectOrder={handleSelectOrder} />}
-          {currentPage === 'Galeria' && (
-            <GalleryPage onSelectOrder={setGallerySelectedItem} />
-          )}
-          {currentPage === 'Linha do Tempo' && <TimelinePage onSelectOrder={handleSelectOrder} />}
-          {currentPage === 'Financeiro' && <FinancialPage />}
-          {currentPage === 'Chat' && <ChatPage />}
-          {currentPage === 'Relatórios' && <ReportsPage />}
-          {currentPage === 'Log de Atividade' && <ActivityLogPage />}
-          {currentPage === 'Configurações' && <SettingsPage />}
+          <Suspense fallback={suspenseFallback}>
+            {currentPage === 'Produção' && (
+              <KanbanBoard onSelectOrder={handleSelectOrder} />
+            )}
+            {currentPage === 'Dashboard' && <DashboardPage onSelectOrder={handleSelectOrder} />}
+            {currentPage === 'Comercial' && <CommercialDashboardPage onConvertToOS={handleConvertToOS} />}
+            {currentPage === 'Agenda' && <AgendaPage onSelectOrder={handleSelectOrder} />}
+            {currentPage === 'Galeria' && (
+              <GalleryPage onSelectOrder={setGallerySelectedItem} />
+            )}
+            {currentPage === 'Linha do Tempo' && <TimelinePage onSelectOrder={handleSelectOrder} />}
+            {currentPage === 'Financeiro' && <FinancialPage />}
+            {currentPage === 'Chat' && <ChatPage />}
+            {currentPage === 'Relatórios' && <ReportsPage />}
+            {currentPage === 'Log de Atividade' && <ActivityLogPage />}
+            {currentPage === 'Configurações' && <SettingsPage />}
+          </Suspense>
         </main>
       </div>
       
