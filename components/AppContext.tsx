@@ -976,6 +976,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             text: '', status: 'thinking', timestamp: new Date().toISOString(),
         };
         
+        // Atomically add both user and thinking messages to prevent race conditions
         setMessages(prev => [...prev, newMessage, thinkingMessage]);
 
         try {
@@ -990,7 +991,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 text: botResponseText, 
                 timestamp: new Date().toISOString(),
             };
-
+            
+            // This functional update is safe and will replace the thinking message correctly
             setMessages(prev => prev.map(msg => msg.id === thinkingMessageId ? botResponseMessage : msg));
             
             setChannels(prevChannels => {
@@ -1029,7 +1031,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             })();
         }
         
-        // Update last message in channel list if it's not a bot interaction
+        // Update last message in channel list
         setChannels(prevChannels => {
             const updatedChannels = prevChannels.map(c => 
                 c.id === channelId ? { ...c, lastMessage: newMessage } : c
