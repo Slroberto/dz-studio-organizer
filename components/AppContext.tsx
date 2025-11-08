@@ -552,7 +552,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
      if (Object.keys(kanbanFilters).length > 0) {
         tempOrders = tempOrders.filter(o => {
-            const { searchTerm, client, responsible, startDate, endDate } = kanbanFilters;
+            const { searchTerm, client, responsible, startDate, endDate, priority } = kanbanFilters;
 
             if (searchTerm) {
                 const lowercasedTerm = searchTerm.toLowerCase();
@@ -565,6 +565,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
             if (client && o.client !== client) return false;
             if (responsible && o.responsible !== responsible) return false;
+            if (priority && o.priority !== priority) return false;
 
             if (startDate && o.expectedDeliveryDate) {
                 if (new Date(o.expectedDeliveryDate) < new Date(startDate)) return false;

@@ -193,6 +193,18 @@
           animation-delay: .4s;
       }
 
+      /* Urgent Card Pulse Animation */
+      @keyframes urgent-pulse {
+        0%, 100% {
+          box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+        }
+        50% {
+          box-shadow: 0 0 8px 3px rgba(239, 68, 68, 0.1);
+        }
+      }
+      .urgent-pulse-animation {
+        animation: urgent-pulse 2.5s infinite ease-in-out;
+      }
     </style>
     <script>
       tailwind.config = {

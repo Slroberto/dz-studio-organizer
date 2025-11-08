@@ -231,6 +231,7 @@ export interface KanbanFilters {
   responsible?: string;
   startDate?: string;
   endDate?: string;
+  priority?: Priority;
 }
 
 export interface KanbanView {

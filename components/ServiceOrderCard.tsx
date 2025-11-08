@@ -203,7 +203,8 @@ export const ServiceOrderCard: React.FC<ServiceOrderCardProps> = ({ order, onDra
   const cardClasses = [
     "relative bg-coal-black border-2 border-transparent rounded-lg p-4 mb-3 shadow-lg transition-all duration-300 card-enter-animation",
     isInteractive ? "cursor-pointer hover:shadow-[0_0_15px_2px_rgba(220,255,0,0.2)] hover:-translate-y-1" : "cursor-default",
-    isDragging ? "opacity-50 transform rotate-3 scale-105 shadow-2xl shadow-black" : ""
+    isDragging ? "opacity-50 transform rotate-3 scale-105 shadow-2xl shadow-black" : "",
+    order.priority === 'Urgente' ? 'urgent-pulse-animation' : ''
   ].join(' ');
 
   const completedTasks = order.tasks?.filter(t => t.completed).length || 0;

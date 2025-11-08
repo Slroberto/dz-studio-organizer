@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from './AppContext';
-import { Search, X, User, Briefcase, Calendar, Save, Trash2, Filter, Eye } from 'lucide-react';
-import { KanbanView } from '../types';
+import { Search, X, User, Briefcase, Calendar, Save, Trash2, Filter, Eye, Flag } from 'lucide-react';
+import { KanbanView, Priority } from '../types';
 
 export const KanbanFilterPanel: React.FC = () => {
     const { 
@@ -45,7 +45,7 @@ export const KanbanFilterPanel: React.FC = () => {
     };
     
     const clearAllFilters = () => {
-        updateKanbanFilters({ searchTerm: '', client: '', responsible: '', startDate: '', endDate: '' });
+        updateKanbanFilters({ searchTerm: '', client: '', responsible: '', startDate: '', endDate: '', priority: undefined });
         setSelectedView('default');
     };
     
@@ -53,7 +53,7 @@ export const KanbanFilterPanel: React.FC = () => {
 
     return (
         <div className="bg-black/20 p-3 rounded-lg border border-granite-gray/20 space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
                 {/* Search */}
                 <div className="relative">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-granite-gray" />
@@ -77,6 +77,17 @@ export const KanbanFilterPanel: React.FC = () => {
                      <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-granite-gray" />
                     <select value={kanbanFilters.responsible || 'all'} onChange={e => handleFilterChange('responsible', e.target.value === 'all' ? '' : e.target.value)} className="w-full appearance-none bg-black/30 border border-granite-gray/50 rounded-lg pl-9 pr-4 py-2 text-sm">
                         {responsibleList.map(r => <option key={r} value={r}>{r === 'all' ? 'Todos Responsáveis' : r}</option>)}
+                    </select>
+                </div>
+                 {/* Priority */}
+                <div className="relative">
+                     <Flag size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-granite-gray" />
+                    <select value={kanbanFilters.priority || 'all'} onChange={e => handleFilterChange('priority', e.target.value === 'all' ? '' : e.target.value)} className="w-full appearance-none bg-black/30 border border-granite-gray/50 rounded-lg pl-9 pr-4 py-2 text-sm">
+                        <option value="all">Todas as Prioridades</option>
+                        <option value="Urgente">Urgente</option>
+                        <option value="Alta">Alta</option>
+                        <option value="Média">Média</option>
+                        <option value="Baixa">Baixa</option>
                     </select>
                 </div>
                  {/* Date Range */}
