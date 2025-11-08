@@ -1,7 +1,8 @@
 
 
+
 import React, { useState } from 'react';
-import { LayoutDashboard, Camera, GanttChartSquare, GalleryHorizontal, ChevronLeft, ChevronRight, History, FileText, Settings, CalendarClock, CalendarRange, Briefcase, Landmark, MessageCircle } from 'lucide-react';
+import { LayoutDashboard, Camera, GanttChartSquare, GalleryHorizontal, ChevronLeft, ChevronRight, History, FileText, Settings, CalendarClock, CalendarRange, Briefcase, Landmark, MessageCircle, TrendingUp } from 'lucide-react';
 import { useAppContext } from './AppContext';
 
 const NavItem = ({ icon, text, active, collapsed, onClick }: { icon: React.ReactNode, text: string, active?: boolean, collapsed: boolean, onClick: () => void }) => (

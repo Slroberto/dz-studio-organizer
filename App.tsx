@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header, HeaderRef } from './components/Header';
@@ -182,7 +183,7 @@ export default function App() {
               <GalleryPage onSelectOrder={setGallerySelectedItem} />
             )}
             {currentPage === 'Linha do Tempo' && <TimelinePage onSelectOrder={handleSelectOrder} />}
-            {currentPage === 'Financeiro' && <FinancialPage />}
+            {currentPage === 'Financeiro' && <FinancialPage onSelectOrder={handleSelectOrder} />}
             {currentPage === 'Chat' && <ChatPage />}
             {currentPage === 'Relatórios' && <ReportsPage />}
             {currentPage === 'Log de Atividade' && <ActivityLogPage />}

@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useAppContext } from './AppContext';
-import { FixedCost, VariableCost, RevenueEntry, FinancialCategory, NotificationColorType } from '../types';
+import { FixedCost, VariableCost, RevenueEntry, FinancialCategory, NotificationColorType, ServiceOrder } from '../types';
 import { DollarSign, Landmark, TrendingUp, Target, PiggyBank, BarChart, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { FinancialEntryModal } from './FinancialEntryModal';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
+import { ProfitabilityDashboard } from './ProfitabilityDashboard';
 
 declare const Chart: any;
 
@@ -242,8 +243,7 @@ const DataTable = ({ title, data, onAdd, onEdit, onDelete }: { title: string, da
     </div>
 );
 
-
-export const FinancialPage: React.FC = () => {
+const FinancialOverview: React.FC = () => {
     const { 
         fixedCosts, variableCosts, revenueEntries,
         addFixedCost, updateFixedCost, deleteFixedCost,
@@ -335,7 +335,7 @@ export const FinancialPage: React.FC = () => {
     return (
         <div className="h-full flex flex-col gap-4">
             <div className="flex-shrink-0 flex justify-between items-center">
-                <h1 className="text-2xl font-bold font-display flex items-center gap-3"><Landmark size={28}/> Dashboard Financeiro</h1>
+                <h1 className="text-xl font-semibold flex items-center gap-3">Visão Geral do Mês</h1>
                 <input
                     type="month"
                     value={selectedMonth}
@@ -343,7 +343,7 @@ export const FinancialPage: React.FC = () => {
                     className="bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
                 />
             </div>
-
+            
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <KpiCard title="Receita Total (Mês)" value={financialData.monthlyRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} icon={<DollarSign size={22}/>} color="bg-green-500/20 text-green-300" />
                 <KpiCard title="Custos Totais (Mês)" value={(financialData.monthlyFixedCosts + financialData.monthlyVariableCosts).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} icon={<PiggyBank size={22}/>} color="bg-red-500/20 text-red-300" />
@@ -359,7 +359,6 @@ export const FinancialPage: React.FC = () => {
                 <BreakEvenChart revenue={financialData.monthlyRevenue} breakEven={financialData.breakEvenPoint} currency="BRL" />
                 <CostDistributionChart fixed={financialData.monthlyFixedCosts} variable={financialData.monthlyVariableCosts} />
             </div>
-
             <div className="flex-1 flex flex-col min-h-0">
                 <div className="flex-shrink-0 border-b border-granite-gray/20">
                     <TabButton type="fixed" label="Custos Fixos" />
@@ -373,7 +372,7 @@ export const FinancialPage: React.FC = () => {
                 </div>
             </div>
 
-            {isModalOpen && (
+             {isModalOpen && (
                 <FinancialEntryModal
                     type={modalType}
                     entry={entryToEdit}
@@ -389,6 +388,44 @@ export const FinancialPage: React.FC = () => {
                     onCancel={() => setEntryToDelete(null)}
                 />
             )}
+        </div>
+    );
+};
+
+
+interface FinancialPageProps {
+    onSelectOrder: (order: ServiceOrder) => void;
+}
+
+type FinancialTab = 'overview' | 'profitability';
+
+const TabButton: React.FC<{ label: string, isActive: boolean, onClick: () => void }> = ({ label, isActive, onClick }) => (
+    <button
+        onClick={onClick}
+        className={`px-4 py-2 text-sm font-semibold transition-colors ${
+            isActive
+                ? 'border-b-2 border-cadmium-yellow text-cadmium-yellow'
+                : 'text-granite-gray-light border-transparent hover:text-white'
+        }`}
+    >
+        {label}
+    </button>
+);
+
+export const FinancialPage: React.FC<FinancialPageProps> = ({ onSelectOrder }) => {
+    const [activeTab, setActiveTab] = useState<FinancialTab>('overview');
+
+    return (
+        <div className="h-full flex flex-col">
+            <div className="flex-shrink-0 border-b border-granite-gray/20 mb-4">
+                <TabButton label="Visão Geral" isActive={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
+                <TabButton label="Rentabilidade por OS" isActive={activeTab === 'profitability'} onClick={() => setActiveTab('profitability')} />
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+                {activeTab === 'overview' && <FinancialOverview />}
+                {activeTab === 'profitability' && <ProfitabilityDashboard onSelectOrder={onSelectOrder} />}
+            </div>
         </div>
     );
 };
