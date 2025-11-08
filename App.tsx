@@ -1,5 +1,7 @@
 
 
+
+
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header, HeaderRef } from './components/Header';
@@ -21,7 +23,6 @@ import { OrderDetailPanel } from './components/OrderDetailPanel';
 const DashboardPage = lazy(() => import('./components/DashboardPage').then(module => ({ default: module.DashboardPage })));
 const ProductionPage = lazy(() => import('./components/ProductionPage').then(module => ({ default: module.ProductionPage })));
 const ManagementPage = lazy(() => import('./components/ManagementPage').then(module => ({ default: module.ManagementPage })));
-const GalleryPage = lazy(() => import('./components/GalleryPage').then(module => ({ default: module.GalleryPage })));
 const ChatPage = lazy(() => import('./components/ChatPage').then(module => ({ default: module.ChatPage })));
 const SettingsPage = lazy(() => import('./components/SettingsPage').then(module => ({ default: module.SettingsPage })));
 
@@ -169,9 +170,8 @@ export default function App() {
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 pb-24 md:pb-6">
           <Suspense fallback={suspenseFallback}>
             {currentPage === 'Dashboard' && <DashboardPage onSelectOrder={handleSelectOrder} />}
-            {currentPage === 'Produção' && <ProductionPage onSelectOrder={handleSelectOrder} />}
+            {currentPage === 'Produção' && <ProductionPage onSelectOrder={handleSelectOrder} onSelectGalleryItem={setGallerySelectedItem} />}
             {currentPage === 'Gestão' && <ManagementPage onConvertToOS={handleConvertToOS} onSelectOrder={handleSelectOrder} />}
-            {currentPage === 'Galeria' && <GalleryPage onSelectOrder={setGallerySelectedItem} />}
             {currentPage === 'Chat' && <ChatPage />}
             {currentPage === 'Configurações' && <SettingsPage />}
           </Suspense>

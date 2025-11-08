@@ -2,8 +2,10 @@
 
 
 
+
+
 import React, { useState } from 'react';
-import { LayoutDashboard, Camera, GanttChartSquare, GalleryHorizontal, ChevronLeft, ChevronRight, Settings, Briefcase, MessageCircle } from 'lucide-react';
+import { LayoutDashboard, Camera, GanttChartSquare, ChevronLeft, ChevronRight, Settings, Briefcase, MessageCircle } from 'lucide-react';
 import { useAppContext } from './AppContext';
 
 const NavItem = ({ icon, text, active, collapsed, onClick }: { icon: React.ReactNode, text: string, active?: boolean, collapsed: boolean, onClick: () => void }) => (
@@ -29,7 +31,6 @@ export const Sidebar: React.FC = () => {
                     <NavItem icon={<LayoutDashboard size={24} />} text="Dashboard" collapsed={isCollapsed} active={currentPage === 'Dashboard'} onClick={() => setCurrentPage('Dashboard')} />
                     <NavItem icon={<GanttChartSquare size={24} />} text="Produção" active={currentPage === 'Produção'} collapsed={isCollapsed} onClick={() => setCurrentPage('Produção')} />
                     <NavItem icon={<Briefcase size={24} />} text="Gestão" collapsed={isCollapsed} active={currentPage === 'Gestão'} onClick={() => setCurrentPage('Gestão')} />
-                    <NavItem icon={<GalleryHorizontal size={24} />} text="Galeria" collapsed={isCollapsed} active={currentPage === 'Galeria'} onClick={() => setCurrentPage('Galeria')} />
                     <NavItem icon={<MessageCircle size={24} />} text="Chat" collapsed={isCollapsed} active={currentPage === 'Chat'} onClick={() => setCurrentPage('Chat')} />
                     <NavItem icon={<Settings size={24} />} text="Configurações" collapsed={isCollapsed} active={currentPage === 'Configurações'} onClick={() => setCurrentPage('Configurações')} />
                 </ul>

@@ -44,7 +44,8 @@ const StatCard = ({ title, value, valueColor = 'text-white', icon, bgColor, icon
     return (
         <div className={`px-4 py-3 rounded-2xl flex items-center gap-4 shadow-md shadow-black/30 hover:shadow-lg hover:shadow-black/40 transition-all duration-300 card-enter-animation`} style={{ backgroundColor: bgColor }}>
             <div className={`p-3 rounded-xl ${iconContainerClass}`}>
-                {React.cloneElement(icon, { className: 'opacity-80' })}
+                {/* FIX: The type of icon props is inferred as `unknown`, which doesn't have `className`. By rendering the icon inside a div with the opacity class, we achieve the same visual effect without type errors. */}
+                <div className="opacity-80">{icon}</div>
             </div>
             <div className="min-w-0">
                 <h3 className="text-sm font-semibold text-gray-400 truncate">{title}</h3>

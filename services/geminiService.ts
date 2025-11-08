@@ -129,7 +129,79 @@ export const getBotResponse = async (message: string, context: BotContext): Prom
         return `OS "**${orderNumber}**" não encontrada.`;
     }
 
-    // 2. Function Call Simulation: Find Quotes for a client
+    // 2. NEW (Phase 3): Writing Assistant
+    const emailMatch = lowerMessage.match(/escreva um email para o cliente da (os-\d+) avisando que (.*)/);
+    if (emailMatch) {
+        const orderNumber = emailMatch[1].toUpperCase();
+        const reason = emailMatch[2];
+        const order = context.orders.find(o => o.orderNumber === orderNumber);
+        if (order) {
+            return `Claro! Aqui está um rascunho de e-mail que você pode copiar e ajustar:\n\n` +
+                   "```\n" +
+                   `Assunto: Atualização sobre a OS ${order.orderNumber} - ${order.client}\n\n` +
+                   `Olá ${order.client},\n\n` +
+                   `Escrevo para fornecer uma atualização sobre o seu projeto (OS ${order.orderNumber}).\n` +
+                   `No momento, ${reason}.\n\n` +
+                   `Manteremos você informado sobre os próximos passos.\n\n` +
+                   `Atenciosamente,\n` +
+                   `${order.responsible || 'Equipe DZ Studio'}\n` +
+                   "```";
+        }
+        return `Não encontrei a OS **${orderNumber}** para redigir o e-mail.`;
+    }
+
+    // 3. NEW (Phase 3): Generate Order Summary
+    const summaryMatch = lowerMessage.match(/resume para (os-\d+)/);
+    if (summaryMatch) {
+        const orderNumber = summaryMatch[1].toUpperCase();
+        const order = context.orders.find(o => o.orderNumber === orderNumber);
+        if (order) {
+            const completedTasks = order.tasks?.filter(t => t.completed).length || 0;
+            const totalTasks = order.tasks?.length || 0;
+            const lastComment = order.comments?.[order.comments.length - 1];
+
+            let summaryText = `A **OS ${order.orderNumber}** para o cliente **${order.client}** está atualmente na fase de **${order.status}**.`;
+            if (totalTasks > 0) {
+                summaryText += ` Das ${totalTasks} tarefas, ${completedTasks} foram concluídas.`;
+            } else {
+                summaryText += " Nenhuma tarefa foi adicionada a esta OS ainda.";
+            }
+            if (lastComment) {
+                summaryText += ` O comentário mais recente de ${lastComment.userName} é: "${lastComment.text}".`;
+            }
+            if (order.expectedDeliveryDate) {
+                 summaryText += ` A previsão de entrega é ${new Date(order.expectedDeliveryDate).toLocaleDateString('pt-BR')}.`;
+            }
+            return `Aqui está o resumo da **OS ${orderNumber}**:\n\n${summaryText}`;
+        }
+        return `OS "**${orderNumber}**" não encontrada para resumir.`;
+    }
+    
+    // 4. NEW (Phase 3): Natural Language Reports
+    if (lowerMessage.includes('faturamento da última semana')) {
+        const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const revenue = context.orders
+            .filter(o => o.status === 'Entregue' && o.deliveryDate && new Date(o.deliveryDate) > oneWeekAgo)
+            .reduce((sum, o) => sum + (o.value || 0), 0);
+        return `Com base nas Ordens de Serviço entregues, o faturamento da última semana foi de **${revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}**.`;
+    }
+
+    const deliveryCountMatch = lowerMessage.match(/quantas os foram entregues em (janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)/);
+    if (deliveryCountMatch) {
+        const monthName = deliveryCountMatch[1];
+        const monthIndex = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'].indexOf(monthName);
+        const currentYear = new Date().getFullYear();
+        
+        const count = context.orders.filter(o => {
+            if (o.status !== 'Entregue' || !o.deliveryDate) return false;
+            const deliveryDate = new Date(o.deliveryDate);
+            return deliveryDate.getMonth() === monthIndex && deliveryDate.getFullYear() === currentYear;
+        }).length;
+
+        return `Em **${monthName.charAt(0).toUpperCase() + monthName.slice(1)}**, foram entregues **${count}** Ordens de Serviço.`;
+    }
+
+    // 5. Existing: Find Quotes for a client
     if (lowerMessage.includes('orçamento') || lowerMessage.includes('orcamento')) {
         const clientName = lowerMessage.replace(/orçamentos? para/i, '').replace(/orçamentos?/i, '').trim();
         const results = context.quotes.filter(q => q.client.toLowerCase().includes(clientName.toLowerCase()));
@@ -141,7 +213,7 @@ export const getBotResponse = async (message: string, context: BotContext): Prom
         return `Nenhum orçamento encontrado para "**${clientName}**".`;
     }
 
-    // 3. Function Call Simulation: Create Tasks
+    // 6. Existing: Create Tasks
     if (lowerMessage.startsWith('crie') && (lowerMessage.includes('tarefa') || lowerMessage.includes('task'))) {
         const osMatch = lowerMessage.match(/os-\d+/);
         if (osMatch) {
@@ -161,11 +233,13 @@ export const getBotResponse = async (message: string, context: BotContext): Prom
         }
     }
 
-    // 4. Fallback "Generative" response
+    // 7. Fallback "Generative" response
     return 'Desculpe, não entendi o comando. Tente algo como:\n' +
            '- "**status da OS-001**"\n' +
            '- "**orçamentos para a Nike**"\n' +
-           '- "**crie tarefas para a OS-005: tarefa 1, tarefa 2**"';
+           '- "**resume para OS-004**"\n' +
+           '- "**qual foi o faturamento da última semana?**"\n' +
+           '- "**escreva um email para o cliente da OS-006 avisando que as fotos estão em aprovação.**"';
 };
 
 // --- [NEW] Gemini Service for Proactive Suggestions ---

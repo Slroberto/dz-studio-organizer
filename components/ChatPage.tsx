@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useLayoutEffect } from 'react';
 import { useAppContext } from './AppContext';
 import { ChannelType, ChatChannel, ChatMessage, User, ChatAttachment, ActionableIntent } from '../types';
-import { PlusCircle, Send, Users, User as UserIcon, X, Paperclip, File as FileIcon, Download, Smile, CornerDownRight, Search, Edit, Trash2, Loader, Info } from 'lucide-react';
+import { PlusCircle, Send, Users, User as UserIcon, X, Paperclip, File as FileIcon, Download, Smile, CornerDownRight, Search, Edit, Trash2, Loader, Info, Bot } from 'lucide-react';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { ChannelInfoPanel } from './ChannelInfoPanel';
 
@@ -294,6 +294,7 @@ export const ChatPage = () => {
     const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
     const [newMessage, setNewMessage] = useState('');
     const [attachment, setAttachment] = useState<File | null>(null);
+    const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
     const [isNewChatModalOpen, setIsNewChatModalOpen] = useState(false);
     const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
     const [showEmojiPickerFor, setShowEmojiPickerFor] = useState<string | null>(null);
@@ -429,13 +430,21 @@ export const ChatPage = () => {
             return part;
         });
     };
+    
+    const handleClearAttachment = () => {
+        setAttachment(null);
+        setAttachmentPreview(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
 
     const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
         if ((newMessage.trim() || attachment) && selectedChannelId) {
             sendMessage(selectedChannelId, newMessage.trim(), attachment || undefined, replyingTo?.id);
             setNewMessage('');
-            setAttachment(null);
+            handleClearAttachment();
             setReplyingTo(null);
         }
     };
@@ -452,6 +461,16 @@ export const ChatPage = () => {
                 return;
             }
             setAttachment(file);
+
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setAttachmentPreview(reader.result as string);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                setAttachmentPreview(null);
+            }
         }
     };
     
@@ -734,6 +753,13 @@ export const ChatPage = () => {
                             />
                         ))}
                     </div>
+                    <div className="p-4 mt-auto border-t border-granite-gray/20">
+                        <div className="flex flex-col items-center text-center text-granite-gray">
+                            <Bot size={40} className="text-cadmium-yellow/50 mb-2" />
+                            <p className="font-semibold text-gray-400">DZ Bot</p>
+                            <p className="text-xs">Seu assistente IA para otimizar o fluxo de trabalho.</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="flex-1 flex flex-col">
@@ -807,12 +833,19 @@ export const ChatPage = () => {
                                     </div>
                                 )}
                                 {attachment && (
-                                    <div className="mb-2 p-2 bg-black/30 rounded-lg flex items-center justify-between">
+                                    <div className="mb-2 p-2 bg-black/30 rounded-lg flex items-start justify-between">
                                         <div className="flex items-center min-w-0">
-                                            <FileIcon size={20} className="mr-2 flex-shrink-0 text-gray-400"/>
-                                            <span className="text-sm text-gray-300 truncate">{attachment.name}</span>
+                                            {attachmentPreview ? (
+                                                <img src={attachmentPreview} alt="Preview" className="w-12 h-12 object-cover rounded mr-3 flex-shrink-0"/>
+                                            ) : (
+                                                <FileIcon size={32} className="mr-3 flex-shrink-0 text-gray-400" />
+                                            )}
+                                            <div className="min-w-0">
+                                                <p className="text-sm text-gray-300 truncate">{attachment.name}</p>
+                                                <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
+                                            </div>
                                         </div>
-                                        <button onClick={() => setAttachment(null)} className="p-1 text-gray-400 hover:text-white"><X size={16}/></button>
+                                        <button onClick={handleClearAttachment} className="p-1 text-gray-400 hover:text-white flex-shrink-0"><X size={16}/></button>
                                     </div>
                                 )}
                                 <form onSubmit={handleSendMessage} className="flex items-center gap-3">

@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Settings, PlusCircle, Edit, Trash2, BookOpen, Save, Workflow, Type, Hash, Calendar, ToggleLeft, ListChecks, GripVertical, ChevronDown, Check } from 'lucide-react';
 import { useAppContext } from './AppContext';
-import { User, UserRole, CatalogServiceItem, KanbanColumn, CustomFieldDefinition, CustomFieldType } from '../types';
+// FIX: Import NotificationColorType to use enum members for type safety.
+import { User, UserRole, CatalogServiceItem, KanbanColumn, CustomFieldDefinition, CustomFieldType, NotificationColorType } from '../types';
 import { UserFormModal } from './UserFormModal';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { ServiceItemFormModal } from './ServiceItemFormModal';
@@ -75,16 +76,19 @@ const CustomFieldsSettings = () => {
         const finalFields = editableFields.map(({ _tempId, ...rest }) => rest);
         const names = finalFields.map(f => f.name.trim());
         if (new Set(names).size !== names.length) {
-            addNotification({ message: 'Erro ao Salvar', details: 'Os nomes dos campos devem ser únicos.', type: 'alert' });
+            // FIX: Use NotificationColorType.Alert instead of the string 'alert'.
+            addNotification({ message: 'Erro ao Salvar', details: 'Os nomes dos campos devem ser únicos.', type: NotificationColorType.Alert });
             return;
         }
         if (names.some(name => name === '')) {
-            addNotification({ message: 'Erro ao Salvar', details: 'O nome do campo não pode estar vazio.', type: 'alert' });
+            // FIX: Use NotificationColorType.Alert instead of the string 'alert'.
+            addNotification({ message: 'Erro ao Salvar', details: 'O nome do campo não pode estar vazio.', type: NotificationColorType.Alert });
             return;
         }
 
         setCustomFieldDefinitions(finalFields);
-        addNotification({ message: 'Campos personalizados salvos com sucesso!', type: 'success' });
+        // FIX: Use NotificationColorType.Success instead of the string 'success'.
+        addNotification({ message: 'Campos personalizados salvos com sucesso!', type: NotificationColorType.Success });
     };
 
     const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
@@ -278,7 +282,8 @@ const KanbanSettings = () => {
 
         const titles = finalEditableColumns.map(c => c.title);
         if (new Set(titles).size !== titles.length) {
-            addNotification({ message: 'Erro ao Salvar', details: 'Os títulos das colunas devem ser únicos.', type: 'alert' });
+            // FIX: Use NotificationColorType.Alert instead of the string 'alert'.
+            addNotification({ message: 'Erro ao Salvar', details: 'Os títulos das colunas devem ser únicos.', type: NotificationColorType.Alert });
             return;
         }
         
@@ -286,7 +291,8 @@ const KanbanSettings = () => {
         const finalColumns = [...finalEditableColumns, ...(deliveredColumn ? [deliveredColumn] : [])];
 
         setKanbanColumns(finalColumns);
-        addNotification({ message: 'Fluxo de trabalho salvo com sucesso!', type: 'success' });
+        // FIX: Use NotificationColorType.Success instead of the string 'success'.
+        addNotification({ message: 'Fluxo de trabalho salvo com sucesso!', type: NotificationColorType.Success });
     };
 
     const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {

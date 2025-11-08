@@ -962,60 +962,84 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       text, timestamp: new Date().toISOString(), attachment, ...(replyTo && { replyTo }), mentions: mentionedUserIds.length > 0 ? mentionedUserIds : undefined,
     };
     
-    setMessages(prev => [...prev, newMessage]);
-
     const botMention = '@DZ Bot';
     const isBotMentioned = text.toLowerCase().includes(botMention.toLowerCase());
     
-    // Run reactive bot OR proactive analysis, but not both.
     if (isBotMentioned) {
-        // --- REACTIVE BOT LOGIC ---
         const command = text.replace(new RegExp(botMention, 'ig'), '').trim();
         const botUser = users.find(u => u.id === 'user-bot');
         if (!botUser) return;
         
+        const thinkingMessageId = `msg-thinking-${Date.now()}`;
         const thinkingMessage: ChatMessage = {
-            id: `msg-thinking-${Date.now()}`, channelId, senderId: botUser.id, senderName: botUser.name, senderPicture: botUser.picture,
+            id: thinkingMessageId, channelId, senderId: botUser.id, senderName: botUser.name, senderPicture: botUser.picture,
             text: '', status: 'thinking', timestamp: new Date().toISOString(),
         };
-        setMessages(prev => [...prev, thinkingMessage]);
+        
+        setMessages(prev => [...prev, newMessage, thinkingMessage]);
 
         try {
             const botResponseText = await getBotResponse(command, { orders, quotes, kanbanColumns });
+
             const botResponseMessage: ChatMessage = {
-                ...thinkingMessage, id: `msg-bot-${Date.now()}`, text: botResponseText, status: undefined,
+                id: thinkingMessageId, // Re-use the ID for replacement
+                channelId, 
+                senderId: botUser.id, 
+                senderName: botUser.name, 
+                senderPicture: botUser.picture,
+                text: botResponseText, 
+                timestamp: new Date().toISOString(),
             };
-            setMessages(prev => [...prev.filter(m => m.id !== thinkingMessage.id), botResponseMessage]);
-            const updatedChannels = channels.map(c => c.id === channelId ? { ...c, lastMessage: botResponseMessage } : c);
-            setChannels(updatedChannels);
-            localStorage.setItem('dz-chat-channels', JSON.stringify(updatedChannels));
+
+            setMessages(prev => prev.map(msg => msg.id === thinkingMessageId ? botResponseMessage : msg));
+            
+            setChannels(prevChannels => {
+                const updatedChannels = prevChannels.map(c => 
+                    c.id === channelId ? { ...c, lastMessage: botResponseMessage } : c
+                );
+                localStorage.setItem('dz-chat-channels', JSON.stringify(updatedChannels));
+                return updatedChannels;
+            });
+
         } catch (error) {
             console.error("Bot error:", error);
             const errorMessage: ChatMessage = {
-                ...thinkingMessage, id: `msg-bot-error-${Date.now()}`, text: 'Desculpe, ocorreu um erro ao processar seu pedido.', status: undefined,
+                id: thinkingMessageId, // Re-use the ID
+                channelId, 
+                senderId: botUser.id, 
+                senderName: botUser.name, 
+                senderPicture: botUser.picture,
+                text: 'Desculpe, ocorreu um erro ao processar seu pedido.', 
+                timestamp: new Date().toISOString(),
             };
-            setMessages(prev => [...prev.filter(m => m.id !== thinkingMessage.id), errorMessage]);
+            setMessages(prev => prev.map(msg => msg.id === thinkingMessageId ? errorMessage : msg));
         }
-    } else if (!attachmentFile) {
-        // --- PROACTIVE SUGGESTION LOGIC (only for text messages) ---
-        (async () => {
-            const suggestion = await analyzeMessageForIntent(text, { orders, quotes, kanbanColumns });
-            if (suggestion) {
-                setMessages(prev => prev.map(m => 
-                    m.id === newMessage.id ? { ...m, suggestion } : m
-                ));
-            }
-        })();
-    }
-    
-    // Update last message in channel list if it's not a bot interaction
-    if (!isBotMentioned) {
-        const updatedChannels = channels.map(c => c.id === channelId ? { ...c, lastMessage: newMessage } : c);
-        setChannels(updatedChannels);
-        localStorage.setItem('dz-chat-channels', JSON.stringify(updatedChannels));
+    } else {
+        setMessages(prev => [...prev, newMessage]);
+        
+        if (!attachmentFile) {
+            // --- PROACTIVE SUGGESTION LOGIC (only for text messages) ---
+            (async () => {
+                const suggestion = await analyzeMessageForIntent(text, { orders, quotes, kanbanColumns });
+                if (suggestion) {
+                    setMessages(prev => prev.map(m => 
+                        m.id === newMessage.id ? { ...m, suggestion } : m
+                    ));
+                }
+            })();
+        }
+        
+        // Update last message in channel list if it's not a bot interaction
+        setChannels(prevChannels => {
+            const updatedChannels = prevChannels.map(c => 
+                c.id === channelId ? { ...c, lastMessage: newMessage } : c
+            );
+            localStorage.setItem('dz-chat-channels', JSON.stringify(updatedChannels));
+            return updatedChannels;
+        });
     }
 
-  }, [currentUser, channels, addNotification, users, orders, quotes, kanbanColumns]);
+  }, [currentUser, addNotification, users, orders, quotes, kanbanColumns, channels]);
   
   const createChannel = useCallback(async (name: string, members: string[], type: ChannelType): Promise<string | null> => {
     if (type === ChannelType.Private) {
