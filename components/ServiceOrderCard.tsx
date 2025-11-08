@@ -1,7 +1,7 @@
 import React from 'react';
-import { ServiceOrder, OrderStatus, User, UserRole, InvoiceStatus } from '../types';
+import { ServiceOrder, OrderStatus, User, UserRole, InvoiceStatus, Priority } from '../types';
 import { ProgressBar } from './ProgressBar';
-import { Trash2, CheckCircle, User as UserIcon, Calendar, Camera, CheckSquare, MessageSquare, DollarSign, TrendingUp, Receipt, Type, Hash, Check } from 'lucide-react';
+import { Trash2, CheckCircle, User as UserIcon, Calendar, Camera, CheckSquare, MessageSquare, DollarSign, TrendingUp, Receipt, Type, Hash, Check, Flag, Zap } from 'lucide-react';
 import { useAppContext } from './AppContext';
 
 interface ServiceOrderCardProps {
@@ -52,6 +52,26 @@ const DeadlineIndicator = ({ date, status }: { date?: string, status: OrderStatu
       <span>{formattedDate}</span>
     </div>
   );
+};
+
+const PriorityIndicator: React.FC<{ priority?: Priority }> = ({ priority }) => {
+    if (!priority) return null;
+
+    const priorityConfig: Record<Priority, { color: string, icon: React.ReactNode, label: string }> = {
+        'Urgente': { color: 'bg-red-500/20 text-red-300', icon: <Zap size={12} className="mr-1" />, label: 'Urgente' },
+        'Alta': { color: 'bg-orange-500/20 text-orange-300', icon: <Flag size={12} className="mr-1" />, label: 'Alta' },
+        'Média': { color: 'bg-yellow-500/20 text-yellow-300', icon: <Flag size={12} className="mr-1 opacity-60" />, label: 'Média' },
+        'Baixa': { color: 'bg-blue-500/20 text-blue-300', icon: <Flag size={12} className="mr-1 opacity-40" />, label: 'Baixa' },
+    };
+
+    const config = priorityConfig[priority] || priorityConfig['Média'];
+    
+    return (
+        <div className={`flex items-center text-xs font-bold px-2 py-0.5 rounded-full ${config.color}`} title={`Prioridade: ${priority}`}>
+            {config.icon}
+            <span>{config.label}</span>
+        </div>
+    );
 };
 
 const ProfitMarginIndicator: React.FC<{ order: ServiceOrder }> = ({ order }) => {
@@ -217,6 +237,7 @@ export const ServiceOrderCard: React.FC<ServiceOrderCardProps> = ({ order, onDra
           </h3>
         </div>
          <div className="flex items-center gap-2">
+            <PriorityIndicator priority={order.priority} />
             {isAdmin && order.invoice && <InvoiceStatusIndicator order={order} />}
             {isAdmin && order.value != null && order.value > 0 && <ProfitMarginIndicator order={order} />}
          </div>

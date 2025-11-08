@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { ServiceOrder, OrderStatus, NotificationColorType, Task, Comment, UserRole, CustomFieldDefinition, CustomFieldType, InvoiceStatus } from '../types';
+import { ServiceOrder, OrderStatus, NotificationColorType, Task, Comment, UserRole, CustomFieldDefinition, CustomFieldType, InvoiceStatus, Priority } from '../types';
 import { useAppContext } from './AppContext';
 import { Loader, UploadCloud, File, ExternalLink, Trash2, AlertTriangle, ImagePlus, ListTodo, MessageSquare, Info, Send, CheckSquare, Plus, ChevronDown, CheckCircle, AlertCircle, Share2, Copy, TrendingUp, DollarSign, Receipt, Download } from 'lucide-react';
 import { generateInvoicePDF } from '../services/pdfService';
@@ -330,6 +330,21 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
                     <div>
                         <label htmlFor="deliveryDate" className="block text-sm font-medium text-granite-gray-light mb-1">Data de Entrega</label>
                         <input type="date" name="deliveryDate" id="deliveryDate" value={formData.deliveryDate?.split('T')[0] || ''} onChange={handleInputChange} className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow" />
+                    </div>
+                    <div>
+                        <label htmlFor="priority" className="block text-sm font-medium text-granite-gray-light mb-1">Prioridade</label>
+                        <select
+                            name="priority"
+                            id="priority"
+                            value={formData.priority || 'Média'}
+                            onChange={handleInputChange}
+                            className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
+                        >
+                            <option value="Baixa">Baixa</option>
+                            <option value="Média">Média</option>
+                            <option value="Alta">Alta</option>
+                            <option value="Urgente">Urgente</option>
+                        </select>
                     </div>
                 </div>
 

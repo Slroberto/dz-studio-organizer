@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ServiceOrder, UserRole, CustomFieldDefinition } from '../types';
+import { ServiceOrder, UserRole, CustomFieldDefinition, Priority } from '../types';
 import { useAppContext } from './AppContext';
 import { Loader } from 'lucide-react';
 
@@ -36,6 +36,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose, initialDa
   const [imageCount, setImageCount] = useState(initialData?.imageCount?.toString() || '');
   const [value, setValue] = useState(initialData?.value?.toString() || '');
   const [costs, setCosts] = useState(initialData?.costs?.toString() || '');
+  const [priority, setPriority] = useState<Priority>(initialData?.priority || 'Média');
   const [customFields, setCustomFields] = useState<Record<string, any>>({});
 
   const isAdmin = currentUser?.role === UserRole.Admin;
@@ -78,6 +79,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose, initialDa
         imageCount: parseInt(imageCount, 10) || 0,
         value: parseFloat(value) || 0,
         costs: parseFloat(costs) || 0,
+        priority,
         customFields: processedCustomFields,
     };
 
@@ -113,7 +115,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose, initialDa
               required
             />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
              <div>
                 <label htmlFor="orderNumber" className="block text-sm font-medium text-granite-gray-light mb-1">Número da OS</label>
                 <input
@@ -134,6 +136,20 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose, initialDa
                   onChange={(e) => setExpectedDeliveryDate(e.target.value)}
                   className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
                 />
+            </div>
+            <div>
+                <label htmlFor="priority" className="block text-sm font-medium text-granite-gray-light mb-1">Prioridade</label>
+                <select
+                    id="priority"
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value as Priority)}
+                    className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
+                >
+                    <option value="Baixa">Baixa</option>
+                    <option value="Média">Média</option>
+                    <option value="Alta">Alta</option>
+                    <option value="Urgente">Urgente</option>
+                </select>
             </div>
           </div>
            <div className={`grid ${isAdmin ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1'} gap-4 mb-4`}>

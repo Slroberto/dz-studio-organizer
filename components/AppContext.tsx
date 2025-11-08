@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode, useMemo } from 'react';
-import { ServiceOrder, User, AppNotification, ActivityLogEntry, OrderStatus, UserRole, ActivityActionType, NotificationColorType, Task, Comment, CommercialQuote, QuoteStatus, CatalogServiceItem, KanbanFilters, KanbanView, KanbanColumn, CustomFieldDefinition, ProofImage, ProofComment, Invoice, InvoiceStatus, FixedCost, VariableCost, RevenueEntry, ChatChannel, ChatMessage, ChannelType, ChatAttachment } from '../types';
+import { ServiceOrder, User, AppNotification, ActivityLogEntry, OrderStatus, UserRole, ActivityActionType, NotificationColorType, Task, Comment, CommercialQuote, QuoteStatus, CatalogServiceItem, KanbanFilters, KanbanView, KanbanColumn, CustomFieldDefinition, ProofImage, ProofComment, Invoice, InvoiceStatus, FixedCost, VariableCost, RevenueEntry, ChatChannel, ChatMessage, ChannelType, ChatAttachment, Priority } from '../types';
 import { DEFAULT_KANBAN_COLUMNS, DEFAULT_CUSTOM_FIELDS } from '../constants';
 import { MOCK_USERS, MOCK_ORDERS, MOCK_ACTIVITY_LOG, MOCK_QUOTES, MOCK_CATALOG_SERVICES, MOCK_FIXED_COSTS, MOCK_VARIABLE_COSTS, MOCK_REVENUE_ENTRIES, MOCK_CHAT_CHANNELS, MOCK_CHAT_MESSAGES } from '../mockData'; // Import mock data
 
@@ -362,6 +362,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             comments: [],
             customFields: orderData.customFields || {},
             _rowIndex: orders.length + 2,
+            priority: orderData.priority || 'Média',
             ...(orderData.expectedDeliveryDate && {expectedDeliveryDate: orderData.expectedDeliveryDate})
         };
         

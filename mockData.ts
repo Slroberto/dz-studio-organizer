@@ -16,6 +16,7 @@ export const MOCK_ORDERS: ServiceOrder[] = [
     id: 'OS-001', client: 'Nike', orderNumber: 'OS-001', description: 'Fotos de calçados para campanha de verão.', status: 'Aguardando produto',
     progress: 0, thumbnailUrl: 'https://picsum.photos/seed/nike/400/300', responsible: 'Sandro (Admin)',
     expectedDeliveryDate: '2024-08-10T12:00:00.000Z', lastStatusUpdate: '2024-07-28T10:00:00.000Z', creationDate: '2024-07-28T10:00:00.000Z', imageCount: 50, value: 3500, costs: 1200, _rowIndex: 2, link: 'https://www.google.com', tasks: [], comments: [],
+    priority: 'Média',
     customFields: {
       'cf-location': 'Estúdio A',
       'cf-deadline-internal': '2024-08-08T12:00:00.000Z',
@@ -27,17 +28,20 @@ export const MOCK_ORDERS: ServiceOrder[] = [
     id: 'OS-002', client: 'Adidas', orderNumber: 'OS-002', description: 'Still de roupas esportivas coleção outono.', status: 'Em foto',
     progress: 16, thumbnailUrl: 'https://picsum.photos/seed/adidas/400/300', responsible: 'Sandro (Admin)',
     expectedDeliveryDate: '2024-08-12T12:00:00.000Z', lastStatusUpdate: '2024-07-29T14:00:00.000Z', creationDate: '2024-07-27T11:00:00.000Z', imageCount: 30, value: 2800, costs: 1800, _rowIndex: 3, link: '#', tasks: [], comments: [],
+    priority: 'Média',
     notes: 'Fotógrafo Beto alocado. Usar fundo cinza claro.'
   },
   {
     id: 'OS-003', client: 'Puma', orderNumber: 'OS-003', description: 'Fotos de acessórios para e-commerce.', status: 'Revelação',
     progress: 33, thumbnailUrl: 'https://picsum.photos/seed/puma/400/300', responsible: 'Carlos',
-    expectedDeliveryDate: '2024-08-05T12:00:00.000Z', lastStatusUpdate: '2024-07-30T09:20:00.000Z', creationDate: '2024-07-26T15:00:00.000Z', imageCount: 120, value: 1500, costs: 450, _rowIndex: 4, link: '#', tasks: [], comments: []
+    expectedDeliveryDate: '2024-08-05T12:00:00.000Z', lastStatusUpdate: '2024-07-30T09:20:00.000Z', creationDate: '2024-07-26T15:00:00.000Z', imageCount: 120, value: 1500, costs: 450, _rowIndex: 4, link: '#', tasks: [], comments: [],
+    priority: 'Baixa',
   },
   {
     id: 'OS-004', client: 'Coca-Cola', orderNumber: 'OS-004', description: 'Fotos de produto para campanha de marketing.', status: 'Pós-produção',
     progress: 50, thumbnailUrl: 'https://picsum.photos/seed/cocacola/400/300', responsible: 'Sandro (Admin)',
     expectedDeliveryDate: '2024-08-15T12:00:00.000Z', lastStatusUpdate: '2024-07-30T11:30:00.000Z', creationDate: '2024-07-25T09:00:00.000Z', imageCount: 15, value: 5000, costs: 2200, _rowIndex: 5, link: '#',
+    priority: 'Alta',
     tasks: [
         { id: 't-4-1', text: 'Recorte das garrafas', completed: true },
         { id: 't-4-2', text: 'Ajuste de cor e contraste', completed: true },
@@ -55,12 +59,14 @@ export const MOCK_ORDERS: ServiceOrder[] = [
   {
     id: 'OS-005', client: 'Apple', orderNumber: 'OS-005', description: 'Fotos de novos iPhones para lançamento.', status: 'Cromia',
     progress: 67, thumbnailUrl: 'https://picsum.photos/seed/apple/400/300', responsible: 'Sandro (Admin)',
-    expectedDeliveryDate: '2024-08-02T12:00:00.000Z', lastStatusUpdate: '2024-07-29T18:00:00.000Z', creationDate: '2024-07-24T10:00:00.000Z', imageCount: 25, value: 8000, costs: 6500, _rowIndex: 6, link: '#', tasks: [], comments: []
+    expectedDeliveryDate: '2024-08-02T12:00:00.000Z', lastStatusUpdate: '2024-07-29T18:00:00.000Z', creationDate: '2024-07-24T10:00:00.000Z', imageCount: 25, value: 8000, costs: 6500, _rowIndex: 6, link: '#', tasks: [], comments: [],
+    priority: 'Urgente',
   },
   {
     id: 'OS-006', client: 'Samsung', orderNumber: 'OS-006', description: 'Campanha para o novo Galaxy Fold.', status: 'Aprovação',
     progress: 84, thumbnailUrl: 'https://picsum.photos/seed/samsung/400/300', responsible: 'Sandro (Admin)',
     expectedDeliveryDate: '2024-07-31T12:00:00.000Z', lastStatusUpdate: '2024-07-30T16:45:00.000Z', creationDate: '2024-07-22T14:00:00.000Z', imageCount: 40, value: 7500, costs: 3000, _rowIndex: 7, link: '#', tasks: [], comments: [],
+    priority: 'Alta',
     proofingGallery: [
         {
             id: 'img-1',
@@ -88,6 +94,7 @@ export const MOCK_ORDERS: ServiceOrder[] = [
     id: 'OS-007', client: 'Gucci', orderNumber: 'OS-007', description: 'Fotos de bolsas e sapatos de luxo.', status: 'Entregue',
     progress: 100, thumbnailUrl: 'https://picsum.photos/seed/gucci/400/300', responsible: 'Sandro (Admin)',
     deliveryDate: '2024-07-29T12:00:00.000Z', expectedDeliveryDate: '2024-07-30T12:00:00.000Z', lastStatusUpdate: '2024-07-29T12:00:00.000Z', creationDate: '2024-07-20T16:00:00.000Z', imageCount: 18, value: 9500, costs: 4000, _rowIndex: 8, link: '#', tasks: [], comments: [],
+    priority: 'Alta',
     invoice: { invoiceNumber: 'FAT-001', issueDate: '2024-07-29T12:00:00.000Z', dueDate: '2024-08-28T12:00:00.000Z', status: InvoiceStatus.Pago }
   },
    {
@@ -95,6 +102,7 @@ export const MOCK_ORDERS: ServiceOrder[] = [
     progress: 100, thumbnailUrl: 'https://picsum.photos/seed/magalu/400/300', responsible: 'Carlos',
     deliveryDate: '2024-08-01T12:00:00.000Z', expectedDeliveryDate: '2024-08-05T12:00:00.000Z',
     lastStatusUpdate: '2024-08-01T17:00:00.000Z', creationDate: '2024-07-30T17:00:00.000Z', imageCount: 75, value: 4000, costs: 1500, _rowIndex: 9, link: '#', tasks: [], comments: [],
+    priority: 'Média',
     invoice: { invoiceNumber: 'FAT-002', issueDate: '2024-08-01T12:00:00.000Z', dueDate: '2024-08-31T12:00:00.000Z', status: InvoiceStatus.Pendente }
   },
 ];

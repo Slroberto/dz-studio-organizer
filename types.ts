@@ -69,6 +69,8 @@ export interface Invoice {
   status: InvoiceStatus;
 }
 
+export type Priority = 'Baixa' | 'Média' | 'Alta' | 'Urgente';
+
 
 export interface ServiceOrder {
   id: string;
@@ -95,6 +97,7 @@ export interface ServiceOrder {
   customFields?: Record<string, string | number | boolean>;
   proofingGallery?: ProofImage[];
   notes?: string;
+  priority?: Priority;
   _rowIndex?: number;
 }
 
