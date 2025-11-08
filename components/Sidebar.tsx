@@ -1,8 +1,9 @@
 
 
 
+
 import React, { useState } from 'react';
-import { LayoutDashboard, Camera, GanttChartSquare, GalleryHorizontal, ChevronLeft, ChevronRight, History, FileText, Settings, CalendarClock, CalendarRange, Briefcase, Landmark, MessageCircle, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Camera, GanttChartSquare, GalleryHorizontal, ChevronLeft, ChevronRight, Settings, Briefcase, MessageCircle } from 'lucide-react';
 import { useAppContext } from './AppContext';
 
 const NavItem = ({ icon, text, active, collapsed, onClick }: { icon: React.ReactNode, text: string, active?: boolean, collapsed: boolean, onClick: () => void }) => (
@@ -26,15 +27,10 @@ export const Sidebar: React.FC = () => {
             <nav className="flex-1">
                 <ul>
                     <NavItem icon={<LayoutDashboard size={24} />} text="Dashboard" collapsed={isCollapsed} active={currentPage === 'Dashboard'} onClick={() => setCurrentPage('Dashboard')} />
-                    <NavItem icon={<Briefcase size={24} />} text="Comercial" collapsed={isCollapsed} active={currentPage === 'Comercial'} onClick={() => setCurrentPage('Comercial')} />
                     <NavItem icon={<GanttChartSquare size={24} />} text="Produção" active={currentPage === 'Produção'} collapsed={isCollapsed} onClick={() => setCurrentPage('Produção')} />
-                    <NavItem icon={<CalendarClock size={24} />} text="Agenda" active={currentPage === 'Agenda'} collapsed={isCollapsed} onClick={() => setCurrentPage('Agenda')} />
+                    <NavItem icon={<Briefcase size={24} />} text="Gestão" collapsed={isCollapsed} active={currentPage === 'Gestão'} onClick={() => setCurrentPage('Gestão')} />
                     <NavItem icon={<GalleryHorizontal size={24} />} text="Galeria" collapsed={isCollapsed} active={currentPage === 'Galeria'} onClick={() => setCurrentPage('Galeria')} />
-                    <NavItem icon={<CalendarRange size={24} />} text="Linha do Tempo" collapsed={isCollapsed} active={currentPage === 'Linha do Tempo'} onClick={() => setCurrentPage('Linha do Tempo')} />
-                    <NavItem icon={<Landmark size={24} />} text="Financeiro" collapsed={isCollapsed} active={currentPage === 'Financeiro'} onClick={() => setCurrentPage('Financeiro')} />
                     <NavItem icon={<MessageCircle size={24} />} text="Chat" collapsed={isCollapsed} active={currentPage === 'Chat'} onClick={() => setCurrentPage('Chat')} />
-                    <NavItem icon={<FileText size={24} />} text="Relatórios" collapsed={isCollapsed} active={currentPage === 'Relatórios'} onClick={() => setCurrentPage('Relatórios')} />
-                    <NavItem icon={<History size={24} />} text="Log de Atividade" collapsed={isCollapsed} active={currentPage === 'Log de Atividade'} onClick={() => setCurrentPage('Log de Atividade')} />
                     <NavItem icon={<Settings size={24} />} text="Configurações" collapsed={isCollapsed} active={currentPage === 'Configurações'} onClick={() => setCurrentPage('Configurações')} />
                 </ul>
             </nav>

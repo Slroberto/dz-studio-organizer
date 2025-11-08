@@ -1,3 +1,5 @@
+
+
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { UserRole, ServiceOrder } from '../types';
 import { PlusCircle, Bot, Search, XCircle, LogOut, LayoutGrid } from 'lucide-react';
@@ -15,16 +17,11 @@ export interface HeaderRef {
 }
 
 const pageTitles: { [key: string]: string } = {
-  'Produção': 'Painel de Produção',
   'Dashboard': 'Dashboard',
-  'Comercial': 'Dashboard Comercial',
-  'Agenda': 'Agenda de Entregas',
+  'Produção': 'Painel de Produção',
+  'Gestão': 'Gestão do Negócio',
   'Galeria': 'Galeria',
-  'Linha do Tempo': 'Linha do Tempo',
-  'Financeiro': 'Dashboard Financeiro',
   'Chat': 'Chat Interno',
-  'Relatórios': 'Relatórios de Desempenho',
-  'Log de Atividade': 'Log de Atividade',
   'Configurações': 'Configurações',
 };
 

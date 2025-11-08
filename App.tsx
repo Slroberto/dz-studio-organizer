@@ -19,15 +19,10 @@ import { OrderDetailPanel } from './components/OrderDetailPanel';
 
 // Lazy load page components for better performance
 const DashboardPage = lazy(() => import('./components/DashboardPage').then(module => ({ default: module.DashboardPage })));
-const KanbanBoard = lazy(() => import('./components/KanbanBoard').then(module => ({ default: module.KanbanBoard })));
-const CommercialDashboardPage = lazy(() => import('./components/CommercialDashboardPage').then(module => ({ default: module.CommercialDashboardPage })));
-const AgendaPage = lazy(() => import('./components/AgendaPage').then(module => ({ default: module.AgendaPage })));
+const ProductionPage = lazy(() => import('./components/ProductionPage').then(module => ({ default: module.ProductionPage })));
+const ManagementPage = lazy(() => import('./components/ManagementPage').then(module => ({ default: module.ManagementPage })));
 const GalleryPage = lazy(() => import('./components/GalleryPage').then(module => ({ default: module.GalleryPage })));
-const TimelinePage = lazy(() => import('./components/TimelinePage').then(module => ({ default: module.TimelinePage })));
-const FinancialPage = lazy(() => import('./components/FinancialPage').then(module => ({ default: module.FinancialPage })));
 const ChatPage = lazy(() => import('./components/ChatPage').then(module => ({ default: module.ChatPage })));
-const ReportsPage = lazy(() => import('./components/ReportsPage').then(module => ({ default: module.ReportsPage })));
-const ActivityLogPage = lazy(() => import('./components/ActivityLogPage').then(module => ({ default: module.ActivityLogPage })));
 const SettingsPage = lazy(() => import('./components/SettingsPage').then(module => ({ default: module.SettingsPage })));
 
 
@@ -173,20 +168,11 @@ export default function App() {
         />
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 pb-24 md:pb-6">
           <Suspense fallback={suspenseFallback}>
-            {currentPage === 'Produção' && (
-              <KanbanBoard onSelectOrder={handleSelectOrder} />
-            )}
             {currentPage === 'Dashboard' && <DashboardPage onSelectOrder={handleSelectOrder} />}
-            {currentPage === 'Comercial' && <CommercialDashboardPage onConvertToOS={handleConvertToOS} />}
-            {currentPage === 'Agenda' && <AgendaPage onSelectOrder={handleSelectOrder} />}
-            {currentPage === 'Galeria' && (
-              <GalleryPage onSelectOrder={setGallerySelectedItem} />
-            )}
-            {currentPage === 'Linha do Tempo' && <TimelinePage onSelectOrder={handleSelectOrder} />}
-            {currentPage === 'Financeiro' && <FinancialPage onSelectOrder={handleSelectOrder} />}
+            {currentPage === 'Produção' && <ProductionPage onSelectOrder={handleSelectOrder} />}
+            {currentPage === 'Gestão' && <ManagementPage onConvertToOS={handleConvertToOS} onSelectOrder={handleSelectOrder} />}
+            {currentPage === 'Galeria' && <GalleryPage onSelectOrder={setGallerySelectedItem} />}
             {currentPage === 'Chat' && <ChatPage />}
-            {currentPage === 'Relatórios' && <ReportsPage />}
-            {currentPage === 'Log de Atividade' && <ActivityLogPage />}
             {currentPage === 'Configurações' && <SettingsPage />}
           </Suspense>
         </main>
