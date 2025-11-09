@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useLayoutEffect, useCallback } from 'react';
 import { useAppContext } from './AppContext';
 import { ChannelType, ChatChannel, ChatMessage, User, ChatAttachment, ActionableIntent } from '../types';
 import { PlusCircle, Send, Users, User as UserIcon, X, Paperclip, File as FileIcon, Download, Smile, CornerDownRight, Search, Edit, Trash2, Loader, Info, Bot } from 'lucide-react';
@@ -132,9 +132,10 @@ const ChannelListItem: React.FC<ChannelListItemProps> = ({ channel, isSelected, 
     return (
         <div
             onClick={() => onSelect(channel.id)}
-            className={`flex items-center p-3 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-cadmium-yellow/10' : 'hover:bg-granite-gray/10'}`}
+            className={`flex items-center p-3 rounded-lg cursor-pointer transition-colors relative ${isSelected ? 'bg-cadmium-yellow/10' : 'hover:bg-granite-gray/10'}`}
         >
-            <div className="relative mr-3">
+            {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-cadmium-yellow rounded-r-full"></div>}
+            <div className="relative ml-2 mr-3">
                 {avatar ? (
                     <img src={avatar} alt={name} className="w-10 h-10 rounded-full" />
                 ) : (
@@ -213,40 +214,47 @@ const renderWithMentionsAndLinks = (text: string, users: User[]): (string | Reac
     });
 };
 
-const renderBotMessage = (text: string) => {
-    const lines = text.split('\n');
+const renderBotMessageWithCodeBlocks = (text: string) => {
+    const parts = text.split(/(```[\s\S]*?```)/g);
+
     return (
         <div className="text-sm whitespace-pre-wrap break-words space-y-1">
-            {lines.map((line, lineIndex) => {
-                // Handle list items
-                if (line.trim().startsWith('- ')) {
-                    const listItemContent = line.trim().substring(2);
-                    const boldedListItem = listItemContent.split(/(\*\*.*?\*\*)/g).filter(Boolean);
-                    return (
-                        <div key={lineIndex} className="flex items-start">
-                            <span className="mr-2 text-gray-400">•</span>
-                            <p>
-                                {boldedListItem.map((part, partIndex) => 
-                                    part.startsWith('**') && part.endsWith('**') 
-                                    ? <strong key={partIndex} className="text-white">{part.slice(2, -2)}</strong> 
-                                    : part
-                                )}
-                            </p>
-                        </div>
-                    );
+            {parts.map((part, index) => {
+                if (part.startsWith('```') && part.endsWith('```')) {
+                    const code = part.slice(3, -3).trim();
+                    return <pre key={index}><code>{code}</code></pre>;
                 }
                 
-                // Handle regular text with bolding
-                const parts = line.split(/(\*\*.*?\*\*)/g).filter(Boolean);
-                return (
-                    <p key={lineIndex}>
-                        {parts.map((part, partIndex) => 
-                            part.startsWith('**') && part.endsWith('**') 
-                            ? <strong key={partIndex} className="text-white">{part.slice(2, -2)}</strong> 
-                            : part
-                        )}
-                    </p>
-                );
+                // Render regular text with bolding and lists
+                const lines = part.split('\n');
+                return lines.map((line, lineIndex) => {
+                    if (line.trim().startsWith('- ')) {
+                        const listItemContent = line.trim().substring(2);
+                        const boldedListItem = listItemContent.split(/(\*\*.*?\*\*)/g).filter(Boolean);
+                        return (
+                            <div key={`${index}-${lineIndex}`} className="flex items-start">
+                                <span className="mr-2 text-gray-400">•</span>
+                                <p>
+                                    {boldedListItem.map((p, pIndex) => 
+                                        p.startsWith('**') && p.endsWith('**') 
+                                        ? <strong key={pIndex} className="text-white">{p.slice(2, -2)}</strong> 
+                                        : p
+                                    )}
+                                </p>
+                            </div>
+                        );
+                    }
+                    const boldedParts = line.split(/(\*\*.*?\*\*)/g).filter(Boolean);
+                    return (
+                        <p key={`${index}-${lineIndex}`}>
+                            {boldedParts.map((p, pIndex) => 
+                                p.startsWith('**') && p.endsWith('**') 
+                                ? <strong key={pIndex} className="text-white">{p.slice(2, -2)}</strong> 
+                                : p
+                            )}
+                        </p>
+                    );
+                });
             })}
         </div>
     );
@@ -313,28 +321,18 @@ export const ChatPage = () => {
 
     // State for message pagination
     const [displayedMessagesCount, setDisplayedMessagesCount] = useState<Record<string, number>>({});
-    const [isLoadingMore, setIsLoadingMore] = useState(false);
     
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const editInputRef = useRef<HTMLTextAreaElement>(null);
+    const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
 
-    // Reset message count and scroll to bottom when channel changes
-    useEffect(() => {
-        if (selectedChannelId) {
-            setDisplayedMessagesCount(prev => ({...prev, [selectedChannelId]: PAGE_SIZE}));
-            // We need a slight delay for the new messages to render before scrolling
-            setTimeout(() => scrollToBottom(true), 100);
-        }
+    // Auto-scroll to bottom on new message or channel switch
+    useLayoutEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
     }, [selectedChannelId]);
-
-    useEffect(() => {
-        if (!selectedChannelId && channels.length > 0) {
-            setSelectedChannelId(channels[0].id);
-        }
-    }, [channels, selectedChannelId]);
 
     useEffect(() => {
       if (editingMessage && editInputRef.current) {
@@ -342,16 +340,31 @@ export const ChatPage = () => {
         editInputRef.current.select();
       }
     }, [editingMessage]);
-
-    const scrollToBottom = (force = false) => {
-        if (force) {
-            messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
-        } else {
-            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    
+    // Auto-grow textarea
+    useLayoutEffect(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+            textarea.style.height = 'auto'; // Reset height
+            const scrollHeight = textarea.scrollHeight;
+            textarea.style.height = `${scrollHeight}px`;
         }
-    };
+    }, [newMessage]);
+
+
+    const scrollToBottom = useCallback((behavior: 'smooth' | 'auto' = 'smooth') => {
+        messagesEndRef.current?.scrollIntoView({ behavior });
+    }, []);
+
+    // Select first channel on load
+    useEffect(() => {
+        if (!selectedChannelId && channels.length > 0) {
+            setSelectedChannelId(channels[0].id);
+        }
+    }, [channels, selectedChannelId]);
 
     const handleChannelSelect = (id: string) => {
+        if (id === selectedChannelId) return;
         setSelectedChannelId(id);
         setSearchTerm('');
         setIsSearchVisible(false);
@@ -374,46 +387,60 @@ export const ChatPage = () => {
         }
 
         const lowercasedTerm = searchTerm.toLowerCase();
-        return slicedMessages.filter(m => m.text && m.text.toLowerCase().includes(lowercasedTerm));
+        return allChannelMessages.filter(m => m.text && m.text.toLowerCase().includes(lowercasedTerm));
     }, [allChannelMessages, displayedMessagesCount, selectedChannelId, searchTerm]);
 
     const hasMoreMessages = (allChannelMessages.length > (displayedMessagesCount[selectedChannelId!] || PAGE_SIZE));
 
-    const scrollState = useRef({
-        shouldPreserve: false,
-        oldScrollHeight: 0,
-    }).current;
+    const loadMoreMessages = useCallback(() => {
+        if (!selectedChannelId) return;
+        setDisplayedMessagesCount(prev => ({
+            ...prev,
+            [selectedChannelId]: (prev[selectedChannelId] || PAGE_SIZE) + PAGE_SIZE
+        }));
+    }, [selectedChannelId]);
 
-    const loadMoreMessages = () => {
-        if (!messagesContainerRef.current) return;
-        
-        setIsLoadingMore(true);
-        scrollState.shouldPreserve = true;
-        scrollState.oldScrollHeight = messagesContainerRef.current.scrollHeight;
-        
-        setTimeout(() => { // Simulate delay for better UX
-            setDisplayedMessagesCount(prev => ({
-                ...prev,
-                [selectedChannelId!]: (prev[selectedChannelId!] || PAGE_SIZE) + PAGE_SIZE
-            }));
-            setIsLoadingMore(false);
-        }, 500);
-    };
-    
-    useLayoutEffect(() => {
-        if (scrollState.shouldPreserve && messagesContainerRef.current) {
-            const newScrollHeight = messagesContainerRef.current.scrollHeight;
-            messagesContainerRef.current.scrollTop = newScrollHeight - scrollState.oldScrollHeight;
-            scrollState.shouldPreserve = false;
-        }
-    }, [currentMessages, scrollState]);
-
+    // Infinite scroll observer
     useEffect(() => {
-        // Scroll to bottom only when not preserving scroll or when a new message from the user is sent
-        if (!scrollState.shouldPreserve) {
-            scrollToBottom();
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && hasMoreMessages) {
+                    const container = messagesContainerRef.current;
+                    const oldScrollHeight = container?.scrollHeight || 0;
+                    
+                    loadMoreMessages();
+
+                    // Preserve scroll position
+                    if(container) {
+                        requestAnimationFrame(() => {
+                             container.scrollTop = container.scrollHeight - oldScrollHeight;
+                        });
+                    }
+                }
+            },
+            { root: messagesContainerRef.current, threshold: 1.0 }
+        );
+
+        const trigger = loadMoreTriggerRef.current;
+        if (trigger) {
+            observer.observe(trigger);
         }
-    }, [currentMessages, typingStatus]);
+
+        return () => {
+            if (trigger) {
+                observer.unobserve(trigger);
+            }
+        };
+    }, [hasMoreMessages, loadMoreMessages]);
+
+    // Scroll to bottom when a new message from the current user is sent
+    useEffect(() => {
+        const lastMessage = currentMessages[currentMessages.length - 1];
+        if (lastMessage && lastMessage.senderId === currentUser?.id) {
+            scrollToBottom('smooth');
+        }
+    }, [currentMessages, currentUser]);
+
 
     const highlightMatch = (text: string, term: string) => {
         const renderedMentions = renderWithMentionsAndLinks(text, users);
@@ -669,7 +696,7 @@ export const ChatPage = () => {
                                         <span>DZ Bot está digitando</span>
                                         <span className="typing-dots ml-1"><span>.</span><span>.</span><span>.</span></span>
                                     </div>
-                                ) : msg.text && (isBotMessage ? renderBotMessage(msg.text) : <p className="text-sm whitespace-pre-wrap break-words">{highlightMatch(msg.text, searchTerm)}</p>)}
+                                ) : msg.text && (isBotMessage ? renderBotMessageWithCodeBlocks(msg.text) : <p className="text-sm whitespace-pre-wrap break-words">{highlightMatch(msg.text, searchTerm)}</p>)}
                                 
                                 {msg.attachment && <AttachmentDisplay attachment={msg.attachment} isCurrentUser={isCurrentUser} />}
                                 
@@ -790,18 +817,7 @@ export const ChatPage = () => {
                                 </div>
                             </div>
                             <div ref={messagesContainerRef} className="flex-1 p-4 overflow-y-auto">
-                                {hasMoreMessages && !searchTerm && (
-                                    <div className="text-center my-4">
-                                        <button
-                                            onClick={loadMoreMessages}
-                                            disabled={isLoadingMore}
-                                            className="px-4 py-2 text-sm font-semibold text-cadmium-yellow bg-granite-gray/20 rounded-full hover:bg-granite-gray/40 disabled:opacity-50 flex items-center justify-center mx-auto"
-                                        >
-                                            {isLoadingMore ? <Loader size={16} className="animate-spin mr-2" /> : null}
-                                            Carregar mensagens antigas
-                                        </button>
-                                    </div>
-                                )}
+                                <div ref={loadMoreTriggerRef} className="h-1"></div>
                                 <div className="space-y-0">
                                     {messageListWithSeparators}
                                     <div ref={messagesEndRef} />
@@ -866,7 +882,7 @@ export const ChatPage = () => {
                                         }}
                                         placeholder="Digite uma mensagem..."
                                         rows={1}
-                                        className="flex-1 bg-black/30 border border-granite-gray/50 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow resize-none"
+                                        className="flex-1 bg-black/30 border border-granite-gray/50 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow resize-none max-h-32"
                                     />
                                     <button type="submit" className="p-2.5 bg-cadmium-yellow text-coal-black rounded-lg hover:brightness-110 disabled:opacity-50" disabled={!newMessage.trim() && !attachment}>
                                         <Send size={20} />
