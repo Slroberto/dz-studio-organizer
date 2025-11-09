@@ -222,7 +222,7 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
     clientOrSource: 'Workana',
     budget: 1200,
     deadline: getRelativeDate(15),
-    link: 'https://www.workana.com/job/example-1',
+    link: 'https://www.workana.com/freelancer/71c360426a57037a3dd8d94faa44095c',
     description: 'Necessário tratamento de pele básico, ajuste de cor e remoção de fundo para 200 fotos de modelo em estúdio.',
     status: OpportunityStatus.Prospecting,
     imageUrl: 'https://picsum.photos/seed/fashion/400/200',
