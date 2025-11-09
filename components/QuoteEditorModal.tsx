@@ -5,7 +5,7 @@ import { X, Plus, Trash2, Percent, DollarSign } from 'lucide-react';
 import { ServiceItemFormModal } from './ServiceItemFormModal';
 
 interface QuoteEditorModalProps {
-  quote: CommercialQuote | null;
+  quote: Partial<CommercialQuote> | null;
   onClose: () => void;
   onSave: (quote: CommercialQuote) => void;
 }
@@ -24,20 +24,22 @@ const emptyQuote: Omit<CommercialQuote, 'id' | 'responsible' | 'value'> = {
 
 export const QuoteEditorModal: React.FC<QuoteEditorModalProps> = ({ quote, onClose, onSave }) => {
     const { quotes, currentUser, catalogServices, addCatalogService } = useAppContext();
-    const [formData, setFormData] = useState<Omit<CommercialQuote, 'id' | 'value' | 'responsible'>>(emptyQuote);
+    
+    const [formData, setFormData] = useState<Omit<CommercialQuote, 'id' | 'value' | 'responsible'>>(() => {
+        const initialState = { ...emptyQuote, ...quote };
+        if (!initialState.quoteNumber) {
+            initialState.quoteNumber = `ORC-${new Date().getFullYear()}-${String(quotes.length + 1).padStart(3, '0')}`;
+        }
+        if (initialState.items.length === 0) {
+            initialState.items = [{ id: `item-${Date.now()}`, description: '', quantity: 1, unitPrice: 0 }];
+        }
+        return initialState;
+    });
+
     const [suggestions, setSuggestions] = useState<CatalogServiceItem[]>([]);
     const [activeSuggestionBox, setActiveSuggestionBox] = useState<string | null>(null);
     const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
     const suggestionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    useEffect(() => {
-        if (quote) {
-            setFormData(quote);
-        } else {
-             const nextQuoteNumber = `ORC-${new Date().getFullYear()}-${String(quotes.length + 1).padStart(3, '0')}`;
-             setFormData(prev => ({ ...prev, quoteNumber: nextQuoteNumber }));
-        }
-    }, [quote, quotes.length]);
     
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -140,9 +142,9 @@ export const QuoteEditorModal: React.FC<QuoteEditorModalProps> = ({ quote, onClo
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const finalQuote: CommercialQuote = {
-            id: quote?.id || '',
+            id: (quote as CommercialQuote)?.id || '',
             ...formData,
-            responsible: quote?.responsible || currentUser?.name || 'N/A',
+            responsible: (quote as CommercialQuote)?.responsible || currentUser?.name || 'N/A',
             value: total,
         };
         onSave(finalQuote);
@@ -159,7 +161,7 @@ export const QuoteEditorModal: React.FC<QuoteEditorModalProps> = ({ quote, onClo
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 modal-backdrop-animation" onClick={onClose}>
             <form onSubmit={handleSubmit} className="bg-coal-black rounded-xl w-full max-w-4xl border border-granite-gray/20 shadow-2xl flex flex-col h-[95vh] modal-content-animation" onClick={e => e.stopPropagation()}>
                 <div className="flex-shrink-0 p-6 flex justify-between items-center border-b border-granite-gray/20">
-                    <h2 className="text-2xl font-bold font-display">{quote ? 'Editar Orçamento' : 'Novo Orçamento'}</h2>
+                    <h2 className="text-2xl font-bold font-display">{quote && 'id' in quote ? 'Editar Orçamento' : 'Novo Orçamento'}</h2>
                     <button type="button" onClick={onClose}><X size={24} /></button>
                 </div>
 

@@ -1,5 +1,3 @@
-
-
 import React, { useState, lazy, Suspense } from 'react';
 import { ServiceOrder } from '../types';
 import { Loader, GanttChartSquare, CalendarClock, CalendarRange, GalleryHorizontal } from 'lucide-react';
@@ -12,6 +10,8 @@ const GalleryPage = lazy(() => import('./GalleryPage').then(module => ({ default
 interface ProductionPageProps {
     onSelectOrder: (order: ServiceOrder) => void;
     onSelectGalleryItem: (order: ServiceOrder) => void;
+    onEditRequest: (order: ServiceOrder) => void;
+    onDeleteRequest: (order: ServiceOrder) => void;
 }
 
 type ProductionTab = 'kanban' | 'agenda' | 'timeline' | 'galeria';
@@ -30,7 +30,7 @@ const TabButton: React.FC<{ icon: React.ReactNode, label: string, isActive: bool
     </button>
 );
 
-export const ProductionPage: React.FC<ProductionPageProps> = ({ onSelectOrder, onSelectGalleryItem }) => {
+export const ProductionPage: React.FC<ProductionPageProps> = ({ onSelectOrder, onSelectGalleryItem, onEditRequest, onDeleteRequest }) => {
     const [activeTab, setActiveTab] = useState<ProductionTab>('kanban');
 
     const suspenseFallback = (
@@ -50,7 +50,7 @@ export const ProductionPage: React.FC<ProductionPageProps> = ({ onSelectOrder, o
 
             <div className="flex-1 overflow-y-auto -mx-6 px-6">
                 <Suspense fallback={suspenseFallback}>
-                    {activeTab === 'kanban' && <KanbanBoard onSelectOrder={onSelectOrder} />}
+                    {activeTab === 'kanban' && <KanbanBoard onSelectOrder={onSelectOrder} onEditRequest={onEditRequest} onDeleteRequest={onDeleteRequest} />}
                     {activeTab === 'agenda' && <AgendaPage onSelectOrder={onSelectOrder} />}
                     {activeTab === 'timeline' && <TimelinePage onSelectOrder={onSelectOrder} />}
                     {activeTab === 'galeria' && <GalleryPage onSelectOrder={onSelectGalleryItem} />}

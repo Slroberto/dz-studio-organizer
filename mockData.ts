@@ -1,4 +1,4 @@
-import { ServiceOrder, User, ActivityLogEntry, OrderStatus, UserRole, ActivityActionType, CommercialQuote, QuoteStatus, QuoteItem, CatalogServiceItem, InvoiceStatus, FixedCost, VariableCost, RevenueEntry, ChatChannel, ChannelType, ChatMessage } from './types';
+import { ServiceOrder, User, ActivityLogEntry, OrderStatus, UserRole, ActivityActionType, CommercialQuote, QuoteStatus, QuoteItem, CatalogServiceItem, InvoiceStatus, FixedCost, VariableCost, RevenueEntry, ChatChannel, ChannelType, ChatMessage, Opportunity, OpportunityStatus } from './types';
 
 export const MOCK_USERS: User[] = [
   {
@@ -22,6 +22,7 @@ export const MOCK_ORDERS: ServiceOrder[] = [
       'cf-deadline-internal': '2024-08-08T12:00:00.000Z',
     },
     notes: 'Aguardando chegada dos tênis brancos. Previsão do cliente: 05/08.',
+    files: [],
     shareableToken: 'dz-abc123xyz'
   },
   {
@@ -29,13 +30,15 @@ export const MOCK_ORDERS: ServiceOrder[] = [
     progress: 16, thumbnailUrl: 'https://picsum.photos/seed/adidas/400/300', responsible: 'Sandro (Admin)',
     expectedDeliveryDate: '2024-08-12T12:00:00.000Z', lastStatusUpdate: '2024-07-29T14:00:00.000Z', creationDate: '2024-07-27T11:00:00.000Z', imageCount: 30, value: 2800, costs: 1800, _rowIndex: 3, link: '#', tasks: [], comments: [],
     priority: 'Média',
-    notes: 'Fotógrafo Beto alocado. Usar fundo cinza claro.'
+    notes: 'Fotógrafo Beto alocado. Usar fundo cinza claro.',
+    files: [],
   },
   {
     id: 'OS-003', client: 'Puma', orderNumber: 'OS-003', description: 'Fotos de acessórios para e-commerce.', status: 'Revelação',
     progress: 33, thumbnailUrl: 'https://picsum.photos/seed/puma/400/300', responsible: 'Carlos',
     expectedDeliveryDate: '2024-08-05T12:00:00.000Z', lastStatusUpdate: '2024-07-30T09:20:00.000Z', creationDate: '2024-07-26T15:00:00.000Z', imageCount: 120, value: 1500, costs: 450, _rowIndex: 4, link: '#', tasks: [], comments: [],
     priority: 'Baixa',
+    files: [],
   },
   {
     id: 'OS-004', client: 'Coca-Cola', orderNumber: 'OS-004', description: 'Fotos de produto para campanha de marketing.', status: 'Pós-produção',
@@ -54,13 +57,19 @@ export const MOCK_ORDERS: ServiceOrder[] = [
     customFields: {
         'cf-priority': 10,
         'cf-rush-job': true,
-    }
+    },
+    files: [
+      { id: 'file-1', name: 'briefing_campanha.pdf', url: '#', size: 1205820, uploadStatus: 'completed' },
+      { id: 'file-2', name: 'referencias_iluminacao.zip', url: '#', size: 15302000, uploadStatus: 'uploading', progress: 65 },
+      { id: 'file-3', name: 'logo_vetor.ai', url: '#', size: 850340, uploadStatus: 'failed' },
+    ]
   },
   {
     id: 'OS-005', client: 'Apple', orderNumber: 'OS-005', description: 'Fotos de novos iPhones para lançamento.', status: 'Cromia',
     progress: 67, thumbnailUrl: 'https://picsum.photos/seed/apple/400/300', responsible: 'Sandro (Admin)',
     expectedDeliveryDate: '2024-08-02T12:00:00.000Z', lastStatusUpdate: '2024-07-29T18:00:00.000Z', creationDate: '2024-07-24T10:00:00.000Z', imageCount: 25, value: 8000, costs: 6500, _rowIndex: 6, link: '#', tasks: [], comments: [],
     priority: 'Urgente',
+    files: [],
   },
   {
     id: 'OS-006', client: 'Samsung', orderNumber: 'OS-006', description: 'Campanha para o novo Galaxy Fold.', status: 'Aprovação',
@@ -88,13 +97,15 @@ export const MOCK_ORDERS: ServiceOrder[] = [
                  { id: 'pc-3', x: 50, y: 50, text: 'Cor do fundo OK!', author: 'Cliente', timestamp: '2024-07-31T10:05:00.000Z', resolved: true },
             ]
         }
-    ]
+    ],
+    files: [],
   },
   {
     id: 'OS-007', client: 'Gucci', orderNumber: 'OS-007', description: 'Fotos de bolsas e sapatos de luxo.', status: 'Entregue',
     progress: 100, thumbnailUrl: 'https://picsum.photos/seed/gucci/400/300', responsible: 'Sandro (Admin)',
     deliveryDate: '2024-07-29T12:00:00.000Z', expectedDeliveryDate: '2024-07-30T12:00:00.000Z', lastStatusUpdate: '2024-07-29T12:00:00.000Z', creationDate: '2024-07-20T16:00:00.000Z', imageCount: 18, value: 9500, costs: 4000, _rowIndex: 8, link: '#', tasks: [], comments: [],
     priority: 'Alta',
+    files: [],
     invoice: { invoiceNumber: 'FAT-001', issueDate: '2024-07-29T12:00:00.000Z', dueDate: '2024-08-28T12:00:00.000Z', status: InvoiceStatus.Pago }
   },
    {
@@ -103,6 +114,7 @@ export const MOCK_ORDERS: ServiceOrder[] = [
     deliveryDate: '2024-08-01T12:00:00.000Z', expectedDeliveryDate: '2024-08-05T12:00:00.000Z',
     lastStatusUpdate: '2024-08-01T17:00:00.000Z', creationDate: '2024-07-30T17:00:00.000Z', imageCount: 75, value: 4000, costs: 1500, _rowIndex: 9, link: '#', tasks: [], comments: [],
     priority: 'Média',
+    files: [],
     invoice: { invoiceNumber: 'FAT-002', issueDate: '2024-08-01T12:00:00.000Z', dueDate: '2024-08-31T12:00:00.000Z', status: InvoiceStatus.Pendente }
   },
 ];
@@ -171,6 +183,42 @@ export const MOCK_QUOTES: CommercialQuote[] = [
       items: quote5Items, discountType: 'fixed', discountValue: 0, value: calculateTotal(quote5Items, 'fixed', 0),
       terms: 'A definir.',
     },
+];
+
+export const MOCK_OPPORTUNITIES: Opportunity[] = [
+  {
+    id: 'opp-1',
+    title: 'Tratamento de 200 imagens para E-commerce de Moda',
+    clientOrSource: 'Workana',
+    budget: 1200,
+    deadline: new Date(new Date().setDate(new Date().getDate() + 15)).toISOString(),
+    link: 'https://www.workana.com/job/example-1',
+    description: 'Necessário tratamento de pele básico, ajuste de cor e remoção de fundo para 200 fotos de modelo em estúdio.',
+    status: OpportunityStatus.Prospecting,
+    imageUrl: 'https://picsum.photos/seed/fashion/400/200',
+  },
+  {
+    id: 'opp-2',
+    title: 'Fotografia de produto para catálogo de joias',
+    clientOrSource: 'Indicação - Joalheria Brilho',
+    budget: 3500,
+    deadline: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString(),
+    link: undefined,
+    description: 'Fotos still com fundo neutro e algumas ambientadas. Foco em macro e detalhes. Total de 30 peças.',
+    status: OpportunityStatus.Contacted,
+    imageUrl: 'https://picsum.photos/seed/jewelry/400/200',
+  },
+  {
+    id: 'opp-3',
+    title: 'Pós-produção de campanha de beleza',
+    clientOrSource: 'Agência Criativa',
+    budget: 5000,
+    deadline: new Date(new Date().setDate(new Date().getDate() + 10)).toISOString(),
+    link: 'https://www.agenciacriativa.com/briefing',
+    description: 'Tratamento de pele avançado (Dodge & Burn, Freq. Sep.) para 10 imagens de campanha de cosméticos.',
+    status: OpportunityStatus.Negotiating,
+    imageUrl: 'https://picsum.photos/seed/beauty/400/200',
+  },
 ];
 
 export const MOCK_CATALOG_SERVICES: CatalogServiceItem[] = [

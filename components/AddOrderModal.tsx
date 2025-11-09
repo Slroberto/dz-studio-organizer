@@ -37,6 +37,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose, initialDa
   const [value, setValue] = useState(initialData?.value?.toString() || '');
   const [costs, setCosts] = useState(initialData?.costs?.toString() || '');
   const [priority, setPriority] = useState<Priority>(initialData?.priority || 'Média');
+  const [notes, setNotes] = useState(initialData?.notes || '');
   const [customFields, setCustomFields] = useState<Record<string, any>>({});
 
   const isAdmin = currentUser?.role === UserRole.Admin;
@@ -80,6 +81,7 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose, initialDa
         value: parseFloat(value) || 0,
         costs: parseFloat(costs) || 0,
         priority,
+        notes,
         customFields: processedCustomFields,
     };
 
@@ -202,6 +204,18 @@ export const AddOrderModal: React.FC<AddOrderModalProps> = ({ onClose, initialDa
               rows={3}
               className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
               required
+            />
+          </div>
+          
+          <div className="mb-4">
+            <label htmlFor="notes" className="block text-sm font-medium text-granite-gray-light mb-1">Notas Internas</label>
+            <textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow"
+              placeholder="Anotações visíveis apenas para a equipe..."
             />
           </div>
 

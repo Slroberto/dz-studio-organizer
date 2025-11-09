@@ -11,7 +11,8 @@ export const KanbanFilterPanel: React.FC = () => {
         kanbanViews,
         saveKanbanView,
         applyKanbanView,
-        deleteKanbanView
+        deleteKanbanView,
+        customFieldDefinitions
     } = useAppContext();
 
     const [viewName, setViewName] = useState('');
@@ -22,6 +23,15 @@ export const KanbanFilterPanel: React.FC = () => {
 
     const handleFilterChange = (field: string, value: string) => {
         updateKanbanFilters({ [field]: value });
+    };
+
+    const handleCustomFieldFilterChange = (fieldId: string, value: any) => {
+        updateKanbanFilters({
+            customFields: {
+                ...kanbanFilters.customFields,
+                [fieldId]: value
+            }
+        });
     };
 
     const handleSaveView = () => {
@@ -45,11 +55,17 @@ export const KanbanFilterPanel: React.FC = () => {
     };
     
     const clearAllFilters = () => {
-        updateKanbanFilters({ searchTerm: '', client: '', responsible: '', startDate: '', endDate: '', priority: undefined });
+        updateKanbanFilters({ searchTerm: '', client: '', responsible: '', startDate: '', endDate: '', priority: undefined, customFields: {} });
         setSelectedView('default');
     };
     
-    const isFilterActive = Object.values(kanbanFilters).some(v => v);
+    const isFilterActive = Object.values(kanbanFilters).some(v => {
+        if (typeof v === 'object' && v !== null) {
+            return Object.values(v).some(subV => subV);
+        }
+        return !!v;
+    });
+
 
     return (
         <div className="bg-black/20 p-3 rounded-lg border border-granite-gray/20 space-y-3">
@@ -98,6 +114,42 @@ export const KanbanFilterPanel: React.FC = () => {
                     <input type="date" value={kanbanFilters.endDate || ''} onChange={e => handleFilterChange('endDate', e.target.value)} className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-2 py-2 text-sm" />
                 </div>
             </div>
+
+            {customFieldDefinitions.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3 pt-3 border-t border-granite-gray/20">
+                    {customFieldDefinitions.map(field => {
+                        const value = kanbanFilters.customFields?.[field.id];
+                        switch (field.type) {
+                            case 'text':
+                                return (
+                                    <div key={field.id} className="relative">
+                                        <input
+                                            type="text"
+                                            placeholder={field.name}
+                                            value={value || ''}
+                                            onChange={e => handleCustomFieldFilterChange(field.id, e.target.value)}
+                                            className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-sm text-gray-300 placeholder-granite-gray focus:outline-none focus:ring-1 focus:ring-cadmium-yellow"
+                                        />
+                                    </div>
+                                );
+                            case 'boolean':
+                                 const boolValue = value === undefined || value === '' ? 'all' : String(value);
+                                return (
+                                     <div key={field.id} className="relative">
+                                        <select value={boolValue} onChange={e => handleCustomFieldFilterChange(field.id, e.target.value === 'all' ? '' : e.target.value === 'true')} className="w-full appearance-none bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-sm">
+                                            <option value="all">{field.name} (Todos)</option>
+                                            <option value="true">Sim</option>
+                                            <option value="false">Não</option>
+                                        </select>
+                                    </div>
+                                );
+                            default:
+                                return null;
+                        }
+                    })}
+                </div>
+            )}
+
              <div className="flex items-center justify-between border-t border-granite-gray/20 pt-3">
                  <div className="flex items-center gap-2">
                     <Eye size={16} className="text-granite-gray"/>

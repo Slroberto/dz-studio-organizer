@@ -1,5 +1,3 @@
-
-
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { UserRole, ServiceOrder } from '../types';
 import { PlusCircle, Bot, Search, XCircle, LogOut, LayoutGrid } from 'lucide-react';
@@ -20,6 +18,7 @@ const pageTitles: { [key: string]: string } = {
   'Dashboard': 'Dashboard',
   'Produção': 'Painel de Produção',
   'Gestão': 'Gestão do Negócio',
+  'Oportunidades': 'Mural de Oportunidades',
   'Galeria': 'Galeria',
   'Chat': 'Chat Interno',
   'Configurações': 'Configurações',

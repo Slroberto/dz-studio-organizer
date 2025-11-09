@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ServiceOrder, OrderStatus, UserRole, Task, Comment, KanbanColumn } from '../types';
 import { useAppContext } from './AppContext';
-import { X, Edit, Send, Plus, Trash2, CheckSquare, MessageSquare, Info, ChevronDown } from 'lucide-react';
+import { X, Edit, Send, Plus, Trash2, CheckSquare, MessageSquare, Info, ChevronDown, StickyNote } from 'lucide-react';
 
 interface OrderDetailPanelProps {
   order: ServiceOrder;
@@ -150,6 +150,14 @@ export const OrderDetailPanel: React.FC<OrderDetailPanelProps> = ({ order, onClo
                         {activeTab === 'details' && (
                             <div className="space-y-4 text-sm">
                                 <p className="text-gray-300 whitespace-pre-wrap">{currentOrderData.description}</p>
+                                
+                                {currentOrderData.notes && (
+                                    <div className="mt-4 p-3 bg-yellow-900/20 border-l-4 border-yellow-500 rounded-r-lg">
+                                        <h4 className="font-bold text-yellow-300 flex items-center gap-2 mb-1"><StickyNote size={16}/> Anotação Interna</h4>
+                                        <p className="text-yellow-100/90 whitespace-pre-wrap">{currentOrderData.notes}</p>
+                                    </div>
+                                )}
+
                                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-granite-gray/20">
                                     <div><strong className="block text-granite-gray-light">Responsável:</strong> {currentOrderData.responsible || 'N/A'}</div>
                                     <div><strong className="block text-granite-gray-light">Previsão:</strong> {currentOrderData.expectedDeliveryDate ? new Date(currentOrderData.expectedDeliveryDate).toLocaleDateString('pt-BR') : 'N/A'}</div>

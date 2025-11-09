@@ -9,11 +9,13 @@ interface KanbanColumnProps {
   onDrop: (e: React.DragEvent<HTMLDivElement>, status: OrderStatus) => void;
   onDragStart: (e: React.DragEvent<HTMLDivElement>, orderId: string) => void;
   onSelectOrder: (order: ServiceOrder) => void;
+  onEditRequest: (order: ServiceOrder) => void;
+  onDeleteRequest: (order: ServiceOrder) => void;
   draggedOrderId: string | null;
   onDragEnd: () => void;
 }
 
-export const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, orders, onDrop, onDragStart, onSelectOrder, draggedOrderId, onDragEnd }) => {
+export const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, orders, onDrop, onDragStart, onSelectOrder, onEditRequest, onDeleteRequest, draggedOrderId, onDragEnd }) => {
   const { currentUser, recentlyUpdatedOrderId } = useAppContext();
   const [isOver, setIsOver] = useState(false);
 
@@ -63,6 +65,8 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, orders, onDr
             order={order}
             onDragStart={onDragStart}
             onSelect={onSelectOrder}
+            onEditRequest={onEditRequest}
+            onDeleteRequest={onDeleteRequest}
             isRecentlyUpdated={order.id === recentlyUpdatedOrderId}
             isFreshlyUpdated={isOrderFreshlyUpdated(order.lastStatusUpdate)}
             isDragging={order.id === draggedOrderId}

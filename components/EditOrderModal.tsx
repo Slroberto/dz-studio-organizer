@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { ServiceOrder, OrderStatus, NotificationColorType, Task, Comment, UserRole, CustomFieldDefinition, CustomFieldType, InvoiceStatus, Priority } from '../types';
+import { ServiceOrder, OrderStatus, NotificationColorType, Task, Comment, UserRole, CustomFieldDefinition, CustomFieldType, InvoiceStatus, Priority, FileAttachment } from '../types';
 import { useAppContext } from './AppContext';
-import { Loader, UploadCloud, File, ExternalLink, Trash2, AlertTriangle, ImagePlus, ListTodo, MessageSquare, Info, Send, CheckSquare, Plus, ChevronDown, CheckCircle, AlertCircle, Share2, Copy, TrendingUp, DollarSign, Receipt, Download } from 'lucide-react';
+import { Loader, UploadCloud, File, ExternalLink, Trash2, AlertTriangle, ImagePlus, ListTodo, MessageSquare, Info, Send, CheckSquare, Plus, ChevronDown, CheckCircle, AlertCircle, Share2, Copy, TrendingUp, DollarSign, Receipt, Download, RefreshCw, XCircle } from 'lucide-react';
 import { generateInvoicePDF } from '../services/pdfService';
 
 interface EditOrderModalProps {
@@ -45,6 +45,54 @@ const RenderCustomField: React.FC<{
     }
 };
 
+const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+const FileListItem: React.FC<{file: FileAttachment, onRemove: () => void}> = ({ file, onRemove }) => {
+    
+    const renderStatus = () => {
+        switch(file.uploadStatus) {
+            case 'uploading':
+                return (
+                    <div className="w-full bg-granite-gray/30 rounded-full h-1.5">
+                        <div className="bg-cadmium-yellow h-1.5 rounded-full" style={{width: `${file.progress}%`}}></div>
+                    </div>
+                );
+            case 'completed':
+                return <div className="flex items-center text-xs text-green-400"><CheckCircle size={14} className="mr-1"/> Concluído</div>
+            case 'failed':
+                return <div className="flex items-center text-xs text-red-400"><AlertCircle size={14} className="mr-1"/> Falha</div>
+            case 'pending':
+                return <div className="flex items-center text-xs text-gray-400"><Loader size={14} className="mr-1 animate-spin"/> Pendente</div>
+            default:
+                return null;
+        }
+    };
+    
+    return (
+        <div className="bg-granite-gray/10 p-3 rounded-lg flex items-center gap-4">
+            <File size={24} className="text-granite-gray-light flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-200 text-sm truncate">{file.name}</p>
+                <div className="flex items-center gap-2 text-xs text-granite-gray">
+                    <span>{formatFileSize(file.size)}</span>
+                    <span className="w-24">{renderStatus()}</span>
+                </div>
+            </div>
+            <div className="flex items-center gap-2">
+                 {file.uploadStatus === 'completed' && <a href={file.url} download={file.name} title="Baixar" className="p-1.5 text-granite-gray-light hover:text-white"><Download size={16}/></a>}
+                 {file.uploadStatus === 'failed' && <button title="Tentar novamente" className="p-1.5 text-granite-gray-light hover:text-white"><RefreshCw size={16}/></button>}
+                 <button onClick={onRemove} title="Remover" className="p-1.5 text-granite-gray-light hover:text-red-500"><XCircle size={16}/></button>
+            </div>
+        </div>
+    );
+};
+
 
 export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }) => {
   const {
@@ -54,7 +102,8 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
     customFieldDefinitions,
     updateOrder, isDataLoading, addNotification, currentUser,
     addTask, updateTask, deleteTask, addComment, generateShareableLink,
-    generateInvoice, updateInvoiceStatus
+    generateInvoice, updateInvoiceStatus,
+    uploadFilesForOrder, removeFileFromOrder,
   } = useAppContext();
 
   const currentOrderFromContext = orders.find(o => o.id === order.id) || order;
@@ -66,6 +115,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
   const [shareLink, setShareLink] = useState('');
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const commentListRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isAdmin = currentUser?.role === UserRole.Admin;
   
@@ -76,8 +126,6 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
   }, [currentOrderFromContext.shareableToken]);
 
   useEffect(() => {
-    // Keep form data in sync if context provides a newer version of the order,
-    // but only if the modal isn't currently saving to avoid race conditions.
     const contextOrder = orders.find(o => o.id === order.id);
     if (contextOrder && JSON.stringify(contextOrder) !== JSON.stringify(formData) && saveStatus !== 'saving') {
       setFormData(contextOrder);
@@ -86,7 +134,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    setSaveStatus('idle'); // Any change marks the form as having unsaved changes
+    setSaveStatus('idle');
     
     if (type === 'date') {
         const date = new Date(value);
@@ -107,7 +155,7 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
         processedValue = parseFloat(value as string) || 0;
     } else if (type === 'date' && value) {
         const date = new Date(value as string);
-        date.setHours(12); // avoid timezone issues
+        date.setHours(12);
         processedValue = date.toISOString();
     }
     setFormData(prev => ({
@@ -187,6 +235,13 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareLink);
     addNotification({ message: 'Link copiado para a área de transferência!', type: NotificationColorType.Success });
+  };
+  
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+        uploadFilesForOrder(order.id, Array.from(e.target.files));
+        if (fileInputRef.current) fileInputRef.current.value = ""; // Reset input to allow re-uploading the same file
+    }
   };
 
   useEffect(() => {
@@ -290,6 +345,10 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
                     <div className="lg:col-span-3">
                         <label htmlFor="description" className="block text-sm font-medium text-granite-gray-light mb-1">Descrição</label>
                         <textarea name="description" id="description" value={formData.description} onChange={handleInputChange} rows={3} className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow" required />
+                    </div>
+                    <div className="lg:col-span-3">
+                        <label htmlFor="notes" className="block text-sm font-medium text-granite-gray-light mb-1">Notas Internas</label>
+                        <textarea name="notes" id="notes" value={formData.notes || ''} onChange={handleInputChange} rows={2} className="w-full bg-black/30 border border-granite-gray/50 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-cadmium-yellow" placeholder="Anotações visíveis apenas para a equipe..."/>
                     </div>
                    
                     <div>
@@ -503,11 +562,27 @@ export const EditOrderModal: React.FC<EditOrderModalProps> = ({ order, onClose }
               </div>
             )}
             {activeTab === 'files' && (
-              <div className="w-full flex flex-col items-center justify-center h-full text-granite-gray">
-                <File size={48} className="mb-4" />
-                <h3 className="text-xl font-semibold text-gray-400">Gerenciamento de Arquivos</h3>
-                <p>Esta funcionalidade será implementada em breve.</p>
-              </div>
+              <div className="w-full h-full flex flex-col">
+                    <div className="flex-shrink-0 mb-4 p-4 border-2 border-dashed border-granite-gray/50 rounded-lg text-center bg-black/20 hover:border-cadmium-yellow transition-colors">
+                        <UploadCloud size={32} className="mx-auto text-granite-gray mb-2"/>
+                        <p className="font-semibold text-gray-300">Arraste e solte arquivos ou</p>
+                        <label htmlFor="file-upload" className="cursor-pointer text-cadmium-yellow font-bold hover:underline">
+                            clique para selecionar
+                        </label>
+                        <input ref={fileInputRef} id="file-upload" type="file" multiple className="hidden" onChange={handleFileSelect} />
+                    </div>
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                        {formData.files?.map(file => (
+                            <FileListItem key={file.id} file={file} onRemove={() => removeFileFromOrder(order.id, file.id)} />
+                        ))}
+                        {(!formData.files || formData.files.length === 0) && (
+                            <div className="text-center py-8 text-granite-gray">
+                                <File size={32} className="mx-auto mb-2"/>
+                                Nenhum arquivo anexado.
+                            </div>
+                        )}
+                    </div>
+                </div>
             )}
         </div>
       </div>

@@ -7,9 +7,11 @@ import { KanbanFilterPanel } from './KanbanFilterPanel';
 
 interface KanbanBoardProps {
   onSelectOrder: (order: ServiceOrder) => void;
+  onEditRequest: (order: ServiceOrder) => void;
+  onDeleteRequest: (order: ServiceOrder) => void;
 }
 
-export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
+export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder, onEditRequest, onDeleteRequest }) => {
   const { filteredOrders, handleStatusChange, currentUser, kanbanColumns } = useAppContext();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
@@ -119,6 +121,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ onSelectOrder }) => {
               onDrop={handleDrop}
               onDragStart={handleDragStart}
               onSelectOrder={handleSelectOrder}
+              onEditRequest={onEditRequest}
+              onDeleteRequest={onDeleteRequest}
               draggedOrderId={draggedOrderId}
               onDragEnd={handleDragEnd}
             />

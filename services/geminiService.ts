@@ -1,11 +1,15 @@
-import { ServiceOrder, OrderStatus, DailySummaryData, CommercialQuote, KanbanColumn, ActionableIntent } from '../types';
+import { ServiceOrder, OrderStatus, DailySummaryData, CommercialQuote, KanbanColumn, ActionableIntent, Opportunity, CatalogServiceItem } from '../types';
+import { GoogleGenAI, FunctionDeclaration, Type } from '@google/genai';
 
-// The GoogleGenAI import is removed to prevent loading errors.
+// Initialize the Gemini client.
+// The API key is assumed to be available in process.env.API_KEY as per the guidelines.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
 
 export const generateFinancialInsight = async (kpi: { totalValue: number, deliveredValue: number, openValue: number, overdueCount: number }): Promise<string> => {
+    // This function is kept as a mock as the user's request was about the chat bot.
     console.log("--- MOCK Gemini API for Financial Insight ---");
     console.log("KPIs received:", kpi);
-    // Simulate network latency
     await new Promise(resolve => setTimeout(resolve, 1500));
     
     const formattedDeliveredValue = kpi.deliveredValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -24,38 +28,15 @@ Priorize a finalização dos projetos atrasados para converter o "Valor em Abert
 
 
 export const generateSummary = (orders: ServiceOrder[]): Promise<string> => {
+    // This function is kept as a mock.
   return new Promise((resolve) => {
-    // Simulate network latency
     setTimeout(() => {
-      const prompt = createPrompt(orders);
-      console.log("--- Mock Gemini API Prompt ---");
-      console.log(prompt);
-      console.log("----------------------------");
-      
-      const summary = generateMockResponse(orders);
-      resolve(summary);
-    }, 1500);
-  });
-};
+      const total = orders.length;
+      const delivered = orders.filter(o => o.status === 'Entregue').length;
+      const waiting = orders.filter(o => o.status === 'Aguardando produto').length;
+      const inApproval = orders.filter(o => o.status === 'Aprovação').length;
 
-const createPrompt = (orders: ServiceOrder[]): string => {
-  const orderSummary = orders.map(o => `- OS ${o.orderNumber} for ${o.client} is currently in '${o.status}'.`).join('\n');
-  return `
-    Analyze the following list of ongoing service orders for DZ Studio and provide a brief, encouraging daily summary. 
-    Highlight the number of completed projects, projects in final stages (Approval), and new projects.
-
-    Current Orders:
-    ${orderSummary}
-  `;
-};
-
-const generateMockResponse = (orders: ServiceOrder[]): string => {
-    const total = orders.length;
-    const delivered = orders.filter(o => o.status === 'Entregue').length;
-    const waiting = orders.filter(o => o.status === 'Aguardando produto').length;
-    const inApproval = orders.filter(o => o.status === 'Aprovação').length;
-
-    return `
+      resolve(`
 Great work today, team! Here's a quick look at our progress:
 
 - ✅ ${delivered} project${delivered === 1 ? '' : 's'} completed and delivered. Fantastic job!
@@ -63,10 +44,13 @@ Great work today, team! Here's a quick look at our progress:
 - 🚀 ${waiting} new project${waiting === 1 ? '' : 's'} just came in. Let's get started!
 
 We're currently managing ${total} active orders. Keep up the amazing momentum!
-    `;
+      `);
+    }, 1500);
+  });
 };
 
 export const generateDailySummaryData = (orders: ServiceOrder[], userName: string): DailySummaryData => {
+    // This function is kept as a mock.
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
@@ -87,17 +71,9 @@ export const generateDailySummaryData = (orders: ServiceOrder[], userName: strin
     ).length;
     
     return {
-        userName,
-        inProgress,
-        delivered,
-        waiting,
-        newOrders,
-        stalled: stalledOrders,
-        dueToday
+        userName, inProgress, delivered, waiting, newOrders, stalled: stalledOrders, dueToday
     };
 };
-
-// --- [NEW] Gemini Service for Chat Bot ---
 
 interface BotContext {
     orders: ServiceOrder[];
@@ -106,194 +82,252 @@ interface BotContext {
 }
 
 /**
- * Simulates a call to the Gemini API with function calling for the chat bot.
+ * Calls the Gemini API to get a response from the DZ Bot based on user message and context.
  */
 export const getBotResponse = async (message: string, context: BotContext): Promise<string> => {
-    console.log(`[MOCK Gemini Service] Received command: "${message}"`);
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network latency
-
-    const lowerMessage = message.toLowerCase();
-
-    // 1. Function Call Simulation: Get Order Status
-    if (lowerMessage.includes('status') && /os-\d+/.test(lowerMessage)) {
-        const orderNumber = lowerMessage.match(/os-\d+/)?.[0].toUpperCase();
-        const order = context.orders.find(o => o.orderNumber === orderNumber);
+    try {
+        const systemInstruction = `Você é o DZ Bot, um assistente inteligente para o aplicativo DZ Studio Organizer. Sua função é ajudar os usuários a gerenciar ordens de serviço (OS), orçamentos e obter informações sobre o fluxo de trabalho do estúdio. Responda em português do Brasil. Você receberá a pergunta do usuário e um contexto da aplicação em JSON. Use o contexto para formular sua resposta. Seja conciso e use markdown para formatação (negrito, listas, e blocos de código para e-mails).`;
         
-        if (order) {
-            const column = context.kanbanColumns.find(c => c.status === order.status);
-            return `**Status da OS ${order.orderNumber} (${order.client}):**\n` +
-                   `- **Status Atual:** ${column?.title || order.status}\n` +
-                   `- **Responsável:** ${order.responsible || 'N/A'}\n` +
-                   `- **Previsão de Entrega:** ${order.expectedDeliveryDate ? new Date(order.expectedDeliveryDate).toLocaleDateString('pt-BR') : 'N/A'}`;
-        }
-        return `OS "**${orderNumber}**" não encontrada.`;
+        const content = `
+Contexto da aplicação:
+${JSON.stringify(context)}
+
+---
+
+Pergunta do usuário:
+"${message}"
+`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: content,
+            config: {
+                systemInstruction: systemInstruction,
+            },
+        });
+        return response.text;
+    } catch (error) {
+        console.error("Error getting bot response from Gemini:", error);
+        return "Desculpe, não consegui processar sua solicitação no momento. Ocorreu um erro ao conectar com a IA. Verifique o console para mais detalhes.";
     }
-
-    // 2. NEW (Phase 3): Writing Assistant
-    const emailMatch = lowerMessage.match(/escreva um email para o cliente da (os-\d+) avisando que (.*)/);
-    if (emailMatch) {
-        const orderNumber = emailMatch[1].toUpperCase();
-        const reason = emailMatch[2];
-        const order = context.orders.find(o => o.orderNumber === orderNumber);
-        if (order) {
-            return `Claro! Aqui está um rascunho de e-mail que você pode copiar e ajustar:\n\n` +
-                   "```\n" +
-                   `Assunto: Atualização sobre a OS ${order.orderNumber} - ${order.client}\n\n` +
-                   `Olá ${order.client},\n\n` +
-                   `Escrevo para fornecer uma atualização sobre o seu projeto (OS ${order.orderNumber}).\n` +
-                   `No momento, ${reason}.\n\n` +
-                   `Manteremos você informado sobre os próximos passos.\n\n` +
-                   `Atenciosamente,\n` +
-                   `${order.responsible || 'Equipe DZ Studio'}\n` +
-                   "```";
-        }
-        return `Não encontrei a OS **${orderNumber}** para redigir o e-mail.`;
-    }
-
-    // 3. NEW (Phase 3): Generate Order Summary
-    const summaryMatch = lowerMessage.match(/resume para (os-\d+)/);
-    if (summaryMatch) {
-        const orderNumber = summaryMatch[1].toUpperCase();
-        const order = context.orders.find(o => o.orderNumber === orderNumber);
-        if (order) {
-            const completedTasks = order.tasks?.filter(t => t.completed).length || 0;
-            const totalTasks = order.tasks?.length || 0;
-            const lastComment = order.comments?.[order.comments.length - 1];
-
-            let summaryText = `A **OS ${order.orderNumber}** para o cliente **${order.client}** está atualmente na fase de **${order.status}**.`;
-            if (totalTasks > 0) {
-                summaryText += ` Das ${totalTasks} tarefas, ${completedTasks} foram concluídas.`;
-            } else {
-                summaryText += " Nenhuma tarefa foi adicionada a esta OS ainda.";
-            }
-            if (lastComment) {
-                summaryText += ` O comentário mais recente de ${lastComment.userName} é: "${lastComment.text}".`;
-            }
-            if (order.expectedDeliveryDate) {
-                 summaryText += ` A previsão de entrega é ${new Date(order.expectedDeliveryDate).toLocaleDateString('pt-BR')}.`;
-            }
-            return `Aqui está o resumo da **OS ${orderNumber}**:\n\n${summaryText}`;
-        }
-        return `OS "**${orderNumber}**" não encontrada para resumir.`;
-    }
-    
-    // 4. NEW (Phase 3): Natural Language Reports
-    if (lowerMessage.includes('faturamento da última semana')) {
-        const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-        const revenue = context.orders
-            .filter(o => o.status === 'Entregue' && o.deliveryDate && new Date(o.deliveryDate) > oneWeekAgo)
-            .reduce((sum, o) => sum + (o.value || 0), 0);
-        return `Com base nas Ordens de Serviço entregues, o faturamento da última semana foi de **${revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}**.`;
-    }
-
-    const deliveryCountMatch = lowerMessage.match(/quantas os foram entregues em (janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)/);
-    if (deliveryCountMatch) {
-        const monthName = deliveryCountMatch[1];
-        const monthIndex = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'].indexOf(monthName);
-        const currentYear = new Date().getFullYear();
-        
-        const count = context.orders.filter(o => {
-            if (o.status !== 'Entregue' || !o.deliveryDate) return false;
-            const deliveryDate = new Date(o.deliveryDate);
-            return deliveryDate.getMonth() === monthIndex && deliveryDate.getFullYear() === currentYear;
-        }).length;
-
-        return `Em **${monthName.charAt(0).toUpperCase() + monthName.slice(1)}**, foram entregues **${count}** Ordens de Serviço.`;
-    }
-
-    // 5. Existing: Find Quotes for a client
-    if (lowerMessage.includes('orçamento') || lowerMessage.includes('orcamento')) {
-        const clientName = lowerMessage.replace(/orçamentos? para/i, '').replace(/orçamentos?/i, '').trim();
-        const results = context.quotes.filter(q => q.client.toLowerCase().includes(clientName.toLowerCase()));
-
-        if (results.length > 0) {
-            return `Encontrei **${results.length}** orçamento(s) para "**${clientName}**":\n` +
-                   results.slice(0, 5).map(q => `- **${q.quoteNumber}** (${q.status}): ${q.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`).join('\n');
-        }
-        return `Nenhum orçamento encontrado para "**${clientName}**".`;
-    }
-
-    // 6. Existing: Create Tasks
-    if (lowerMessage.startsWith('crie') && (lowerMessage.includes('tarefa') || lowerMessage.includes('task'))) {
-        const osMatch = lowerMessage.match(/os-\d+/);
-        if (osMatch) {
-            const orderNumber = osMatch[0].toUpperCase();
-            const order = context.orders.find(o => o.orderNumber === orderNumber);
-            if (order) {
-                const tasksText = lowerMessage.split(':')[1];
-                const tasks = tasksText ? tasksText.split(',').map(t => t.trim()) : [];
-                if (tasks.length > 0) {
-                    // In a real scenario, you would call `appContext.addTask` here
-                    return `Ok, simulando a criação de **${tasks.length}** tarefas para a **${orderNumber}**:\n` +
-                           tasks.map(t => `- [ ] ${t}`).join('\n');
-                }
-            } else {
-                return `Não encontrei a OS **${orderNumber}** para adicionar as tarefas.`;
-            }
-        }
-    }
-
-    // 7. Fallback "Generative" response
-    return 'Desculpe, não entendi o comando. Tente algo como:\n' +
-           '- "**status da OS-001**"\n' +
-           '- "**orçamentos para a Nike**"\n' +
-           '- "**resume para OS-004**"\n' +
-           '- "**qual foi o faturamento da última semana?**"\n' +
-           '- "**escreva um email para o cliente da OS-006 avisando que as fotos estão em aprovação.**"';
 };
 
-// --- [NEW] Gemini Service for Proactive Suggestions ---
+const changeStatusTool: FunctionDeclaration = {
+    name: 'change_order_status',
+    description: 'Identifica a intenção de mover uma Ordem de Serviço (OS) para a próxima etapa, com base em palavras-chave como "finalizei", "terminei" ou "concluí".',
+    parameters: {
+        type: Type.OBJECT,
+        properties: {
+            orderNumber: {
+                type: Type.STRING,
+                description: 'O número da OS a ser atualizada, extraído da mensagem. Ex: "OS-004".',
+            },
+        },
+        required: ['orderNumber'],
+    },
+};
+
+const createTasksTool: FunctionDeclaration = {
+    name: 'create_tasks_for_order',
+    description: 'Identifica a intenção de criar uma ou mais tarefas para uma Ordem de Serviço (OS) específica.',
+    parameters: {
+        type: Type.OBJECT,
+        properties: {
+            orderNumber: {
+                type: Type.STRING,
+                description: 'O número da OS onde as tarefas serão adicionadas. Ex: "OS-001".',
+            },
+            tasks: {
+                type: Type.ARRAY,
+                description: 'Uma lista de textos das tarefas a serem criadas.',
+                items: { type: Type.STRING },
+            },
+        },
+        required: ['orderNumber', 'tasks'],
+    },
+};
 
 /**
- * Simulates analyzing a message for actionable intents.
+ * Analyzes a message for actionable intents using Gemini function calling.
  */
 export const analyzeMessageForIntent = async (message: string, context: BotContext): Promise<ActionableIntent | null> => {
-    console.log(`[MOCK Gemini Intent Analysis] Analyzing: "${message}"`);
-    await new Promise(resolve => setTimeout(resolve, 800)); // Simulate analysis latency
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: message,
+            config: {
+                tools: [{ functionDeclarations: [changeStatusTool, createTasksTool] }],
+            },
+        });
 
-    const lowerMessage = message.toLowerCase();
-    
-    // Regex to find OS numbers (e.g., "os-004", "OS-123")
-    const osMatch = lowerMessage.match(/os-\d+/);
-    const orderNumber = osMatch ? osMatch[0].toUpperCase() : null;
-
-    if (!orderNumber) return null;
-
-    const order = context.orders.find(o => o.orderNumber === orderNumber);
-    if (!order) return null;
-    
-    // Intent 1: Change Status
-    const statusKeywords = ['finalizei', 'terminei', 'concluí', 'entreguei', 'acabei de finalizar'];
-    if (statusKeywords.some(kw => lowerMessage.includes(kw))) {
-        const currentStatusIndex = context.kanbanColumns.findIndex(c => c.status === order.status);
-        // Can move if not the last or second-to-last column ('Entregue')
-        const canMove = currentStatusIndex > -1 && currentStatusIndex < context.kanbanColumns.length - 2;
-        
-        if (canMove) {
-            const nextStatus = context.kanbanColumns[currentStatusIndex + 1];
-            return {
-                intent: 'CHANGE_STATUS',
-                parameters: { orderNumber: order.orderNumber, newStatus: nextStatus.status },
-                message: `Deseja mover a ${order.orderNumber} para "${nextStatus.title}"?`
-            };
+        if (!response.functionCalls || response.functionCalls.length === 0) {
+            return null;
         }
-    }
 
-    // Intent 2: Create Task
-    const taskKeywords = ['adicionar tarefa', 'crie a tarefa', 'precisamos fazer'];
-    if (taskKeywords.some(kw => lowerMessage.includes(kw)) && lowerMessage.includes(':')) {
-        const tasksText = lowerMessage.split(':')[1];
-        if (tasksText) {
-            const tasks = tasksText.split(',').map(t => t.trim()).filter(Boolean);
-            if (tasks.length > 0) {
-                 return {
-                    intent: 'CREATE_TASK',
-                    parameters: { orderNumber, tasks },
-                    message: `Adicionar ${tasks.length} tarefa(s) para a ${orderNumber}?`
+        const functionCall = response.functionCalls[0];
+
+        if (functionCall.name === 'change_order_status') {
+            const { orderNumber } = functionCall.args as { orderNumber: string };
+            const order = context.orders.find(o => o.orderNumber.toLowerCase() === orderNumber.toLowerCase());
+            if (!order) return null;
+
+            const currentStatusIndex = context.kanbanColumns.findIndex(c => c.status === order.status);
+            const canMove = currentStatusIndex > -1 && currentStatusIndex < context.kanbanColumns.length - 2;
+
+            if (canMove) {
+                const nextStatus = context.kanbanColumns[currentStatusIndex + 1];
+                return {
+                    intent: 'CHANGE_STATUS',
+                    parameters: { orderNumber: order.orderNumber, newStatus: nextStatus.status },
+                    message: `Detectei que você finalizou uma etapa. Deseja mover a ${order.orderNumber} para "${nextStatus.title}"?`
                 };
             }
         }
-    }
+        
+        if (functionCall.name === 'create_tasks_for_order') {
+             const { orderNumber, tasks } = functionCall.args as { orderNumber: string, tasks: string[] };
+             const order = context.orders.find(o => o.orderNumber.toLowerCase() === orderNumber.toLowerCase());
+             if (!order || !tasks || tasks.length === 0) return null;
+             
+             return {
+                intent: 'CREATE_TASK',
+                parameters: { orderNumber: order.orderNumber, tasks },
+                message: `Deseja adicionar ${tasks.length} tarefa(s) para a ${order.orderNumber}?`
+            };
+        }
 
-    return null;
+        return null;
+    } catch (error) {
+        console.error("Error analyzing message for intent with Gemini:", error);
+        return null;
+    }
+};
+
+export const analyzeOpportunityWithAI = async (opportunity: Pick<Opportunity, 'title' | 'description' | 'budget'>): Promise<Opportunity['aiAnalysis'] | null> => {
+    try {
+        const prompt = `
+          Analise a seguinte oportunidade de trabalho para um estúdio de fotografia e pós-produção.
+          Título: ${opportunity.title}
+          Descrição: ${opportunity.description || 'Nenhuma descrição fornecida.'}
+          Orçamento: ${opportunity.budget ? `R$ ${opportunity.budget}` : 'Não informado'}
+
+          Com base nessas informações, forneça uma análise concisa no seguinte formato JSON:
+          - summary: Um resumo em uma frase do que o trabalho pede.
+          - complexity: A complexidade estimada do trabalho ('Baixa', 'Média', 'Alta').
+          - budgetAnalysis: Uma breve análise sobre o orçamento (se está bom, baixo ou se é difícil dizer sem mais detalhes).
+        `;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        summary: {
+                            type: Type.STRING,
+                            description: 'Resumo em uma frase do que o trabalho pede.',
+                        },
+                        complexity: {
+                            type: Type.STRING,
+                            description: "A complexidade estimada do trabalho: 'Baixa', 'Média' ou 'Alta'.",
+                        },
+                        budgetAnalysis: {
+                            type: Type.STRING,
+                            description: 'Uma breve análise sobre o orçamento.',
+                        },
+                    },
+                    required: ["summary", "complexity", "budgetAnalysis"]
+                },
+            },
+        });
+        
+        const jsonText = response.text.trim();
+        const analysisResult = JSON.parse(jsonText);
+
+        // Basic validation
+        if (analysisResult && analysisResult.summary && analysisResult.complexity && analysisResult.budgetAnalysis) {
+             return analysisResult as Opportunity['aiAnalysis'];
+        }
+        console.warn("Incomplete analysis from Gemini:", analysisResult);
+        return null;
+    } catch (error) {
+        console.error("Error analyzing opportunity with Gemini:", error);
+        return null;
+    }
+};
+
+export const generateProposalDraft = async (
+  opportunity: Opportunity,
+  services: CatalogServiceItem[]
+): Promise<Partial<CommercialQuote> | null> => {
+    try {
+        const servicesString = services.map(s => `- ${s.title}: ${s.description} (Preço: R$${s.price})`).join('\n');
+
+        const prompt = `
+            Você é um assistente de vendas para um estúdio de fotografia. Sua tarefa é criar um rascunho de orçamento com base em uma oportunidade de trabalho e um catálogo de serviços.
+            
+            Oportunidade:
+            - Título: ${opportunity.title}
+            - Descrição: ${opportunity.description || 'N/A'}
+            - Orçamento do Cliente (se informado): ${opportunity.budget ? `R$ ${opportunity.budget}` : 'N/A'}
+
+            Catálogo de Serviços Disponíveis:
+            ${servicesString}
+
+            Com base nas informações acima, selecione os serviços mais relevantes do catálogo, ajuste as quantidades se necessário, e crie um rascunho de orçamento. Seja realista. Se a descrição pedir algo que não está no catálogo, crie um novo item de serviço com um preço estimado razoável.
+
+            Retorne um objeto JSON com a seguinte estrutura:
+            - client: string (o cliente ou fonte da oportunidade).
+            - items: array de objetos, onde cada objeto tem:
+                - description: string
+                - quantity: number
+                - unitPrice: number
+            - terms: string (sugira termos de pagamento padrão, como '50% de entrada, 50% na entrega').
+        `;
+        
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        client: { type: Type.STRING },
+                        items: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    description: { type: Type.STRING },
+                                    quantity: { type: Type.NUMBER },
+                                    unitPrice: { type: Type.NUMBER },
+                                },
+                                required: ["description", "quantity", "unitPrice"]
+                            }
+                        },
+                        terms: { type: Type.STRING }
+                    },
+                    required: ["client", "items", "terms"]
+                },
+            },
+        });
+
+        const jsonText = response.text.trim();
+        const draft = JSON.parse(jsonText);
+        
+        // Add IDs to items
+        const itemsWithIds = draft.items.map((item: any) => ({
+            ...item,
+            id: `item-${Date.now()}-${Math.random()}`
+        }));
+
+        return { ...draft, items: itemsWithIds };
+
+    } catch (error) {
+        console.error("Error generating proposal draft with Gemini:", error);
+        return null;
+    }
 };

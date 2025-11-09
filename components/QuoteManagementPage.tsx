@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
+// FIX: Removed incorrect import of 'Partial'. It is a built-in TypeScript utility type.
 import { CommercialQuote, QuoteStatus, UserRole } from '../types';
 import { useAppContext } from './AppContext';
 import { PlusCircle, Search, Edit, FileText, Repeat, CheckCircle, Trash2, X } from 'lucide-react';
-import { QuoteEditorModal } from './QuoteEditorModal';
 import { generateQuotePDF } from '../services/pdfService';
 
 interface QuoteManagementPageProps {
     onConvertToOS: (quote: CommercialQuote) => void;
+    onOpenEditor: (quote: Partial<CommercialQuote> | null) => void;
 }
 
 const statusConfig: Record<QuoteStatus, { color: string, label: string }> = {
@@ -17,18 +18,11 @@ const statusConfig: Record<QuoteStatus, { color: string, label: string }> = {
     [QuoteStatus.Rejected]: { color: 'bg-red-500', label: 'Recusado' },
 };
 
-export const QuoteManagementPage: React.FC<QuoteManagementPageProps> = ({ onConvertToOS }) => {
-    const { quotes, addQuote, updateQuote, deleteQuote, currentUser, addNotification } = useAppContext();
-    const [isEditorOpen, setIsEditorOpen] = useState(false);
-    const [quoteToEdit, setQuoteToEdit] = useState<CommercialQuote | null>(null);
+export const QuoteManagementPage: React.FC<QuoteManagementPageProps> = ({ onConvertToOS, onOpenEditor }) => {
+    const { quotes, addQuote, deleteQuote, currentUser } = useAppContext();
     const [searchTerm, setSearchTerm] = useState('');
 
     const canEdit = currentUser?.role !== UserRole.Viewer;
-
-    const handleOpenEditor = (quote?: CommercialQuote | null) => {
-        setQuoteToEdit(quote || null);
-        setIsEditorOpen(true);
-    };
 
     const handleDuplicate = async (quote: CommercialQuote) => {
         const newQuoteData: Omit<CommercialQuote, 'id' | 'value'> = {
@@ -38,20 +32,6 @@ export const QuoteManagementPage: React.FC<QuoteManagementPageProps> = ({ onConv
             sentDate: new Date().toISOString(),
         };
         await addQuote(newQuoteData);
-    };
-
-    const handleSaveQuote = async (quoteData: CommercialQuote) => {
-        if (quoteToEdit) {
-            await updateQuote(quoteData);
-        } else {
-            const newQuoteData = {
-                ...quoteData,
-                 responsible: currentUser?.name || 'N/A'
-            };
-            await addQuote(newQuoteData);
-        }
-        setIsEditorOpen(false);
-        setQuoteToEdit(null);
     };
     
     const handleDelete = async (quote: CommercialQuote) => {
@@ -91,7 +71,7 @@ export const QuoteManagementPage: React.FC<QuoteManagementPageProps> = ({ onConv
                 </div>
                 {canEdit && (
                     <button
-                        onClick={() => handleOpenEditor(null)}
+                        onClick={() => onOpenEditor(null)}
                         className="w-full md:w-auto flex items-center justify-center px-4 py-2 bg-cadmium-yellow text-coal-black font-bold rounded-lg hover:brightness-110"
                     >
                         <PlusCircle size={18} className="mr-2" />
@@ -124,7 +104,7 @@ export const QuoteManagementPage: React.FC<QuoteManagementPageProps> = ({ onConv
                                     )}
                                     <button onClick={() => generateQuotePDF(quote)} title="Gerar PDF" className="p-2 bg-granite-gray/20 text-gray-300 rounded hover:bg-granite-gray/40"><FileText size={18} /></button>
                                     <button onClick={() => handleDuplicate(quote)} title="Duplicar" className="p-2 bg-granite-gray/20 text-gray-300 rounded hover:bg-granite-gray/40"><Repeat size={18} /></button>
-                                    <button onClick={() => handleOpenEditor(quote)} title="Editar" className="p-2 bg-granite-gray/20 text-gray-300 rounded hover:bg-granite-gray/40"><Edit size={18} /></button>
+                                    <button onClick={() => onOpenEditor(quote)} title="Editar" className="p-2 bg-granite-gray/20 text-gray-300 rounded hover:bg-granite-gray/40"><Edit size={18} /></button>
                                      <button onClick={() => handleDelete(quote)} title="Excluir" className="p-2 bg-red-500/20 text-red-300 rounded hover:bg-red-500/40"><Trash2 size={18} /></button>
                                 </div>
                             )}
@@ -132,14 +112,6 @@ export const QuoteManagementPage: React.FC<QuoteManagementPageProps> = ({ onConv
                     ))}
                 </div>
             </div>
-
-            {isEditorOpen && (
-                <QuoteEditorModal
-                    quote={quoteToEdit}
-                    onClose={() => setIsEditorOpen(false)}
-                    onSave={handleSaveQuote}
-                />
-            )}
         </div>
     );
 };

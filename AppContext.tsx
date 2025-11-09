@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, Rea
 import { ServiceOrder, User, AppNotification, ActivityLogEntry, OrderStatus, UserRole, ActivityActionType, NotificationColorType, Task, Comment, CommercialQuote, QuoteStatus, CatalogServiceItem, KanbanFilters, KanbanView, KanbanColumn, CustomFieldDefinition, ProofImage, ProofComment, Invoice, InvoiceStatus, FixedCost, VariableCost, RevenueEntry, ChatChannel, ChatMessage, ChannelType, ChatAttachment, Priority, ActionableIntent, Opportunity, OpportunityStatus, FileAttachment, SearchSource } from '../types';
 import { DEFAULT_KANBAN_COLUMNS, DEFAULT_CUSTOM_FIELDS } from '../constants';
 import { MOCK_USERS, MOCK_ORDERS, MOCK_ACTIVITY_LOG, MOCK_QUOTES, MOCK_CATALOG_SERVICES, MOCK_FIXED_COSTS, MOCK_VARIABLE_COSTS, MOCK_REVENUE_ENTRIES, MOCK_CHAT_CHANNELS, MOCK_CHAT_MESSAGES, MOCK_OPPORTUNITIES } from '../mockData'; // Import mock data
-import { getBotResponse, analyzeMessageForIntent, analyzeOpportunityWithAI, generateProposalDraft } from '../services/geminiService';
+import { getBotResponse, analyzeMessageForIntent } from '../services/geminiService';
 import { uploadFile } from '../api/drive';
 
 interface TypingIndicator {
@@ -59,13 +59,6 @@ interface AppContextType {
   isSearchingOpportunities: boolean;
   findNewOpportunities: () => Promise<void>;
   
-  // AI analysis for Opportunities
-  analyzingOpportunityId: string | null;
-  analyzeOpportunity: (opportunityId: string) => Promise<void>;
-  isGeneratingProposalId: string | null;
-  generateProposalForOpportunity: (opportunityId: string) => Promise<Partial<CommercialQuote> | null>;
-
-
   login: (email: string, password: string) => void;
   logout: () => void;
   setCurrentPage: (page: string) => void;
@@ -171,9 +164,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // --- Integrations State ---
   const [searchSources, setSearchSources] = useState<SearchSource[]>([]);
   const [isSearchingOpportunities, setIsSearchingOpportunities] = useState(false);
-  const [analyzingOpportunityId, setAnalyzingOpportunityId] = useState<string | null>(null);
-  const [isGeneratingProposalId, setIsGeneratingProposalId] = useState<string | null>(null);
-
 
 
   // --- State for Kanban Columns ---
@@ -1396,172 +1386,28 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     
     const findNewOpportunities = useCallback(async () => {
         setIsSearchingOpportunities(true);
-        try {
-            const enabledSources = searchSources.filter(s => s.enabled);
-            if (enabledSources.length === 0) {
-                addNotification({ message: "Nenhuma fonte de busca ativa.", details: "Vá em Configurações > Integrações para ativar uma.", type: NotificationColorType.Warning });
-                return;
-            }
-            
-            console.log("[MOCK] Calling backend to find jobs with sources:", enabledSources);
-            await new Promise(resolve => setTimeout(resolve, 2500)); 
-
-            const mockApiResponse: Omit<Opportunity, 'id'>[] = [
-                {
-                    title: `Fotografia Still Life - ${enabledSources[0]?.name || 'Fonte'}`,
-                    clientOrSource: enabledSources[0]?.name || 'Workana',
-                    budget: 1800,
-                    status: OpportunityStatus.Prospecting,
-                    description: 'Busca por fotógrafo para ensaio de produtos de beleza. Necessário experiência com iluminação de estúdio.',
-                    imageUrl: `https://picsum.photos/seed/${Date.now() + 1}/400/200`,
-                    link: `https://example.com/job/${Date.now() + 1}`
-                },
-                {
-                    title: 'Tratamento de 200 imagens para E-commerce de Moda', 
-                    clientOrSource: 'Workana',
-                    budget: 1200,
-                    status: OpportunityStatus.Prospecting,
-                    description: 'Duplicate job to test prevention logic.',
-                    imageUrl: `https://picsum.photos/seed/fashion/400/200`,
-                    link: 'https://www.workana.com/job/example-1' 
-                },
-                {
-                    title: `Edição de Vídeo para Reels - ${enabledSources[1]?.name || 'Outra Fonte'}`,
-                    clientOrSource: enabledSources[1]?.name || '99Freelas',
-                    budget: 950,
-                    status: OpportunityStatus.Prospecting,
-                    description: 'Edição de 10 vídeos curtos para Instagram Reels, com legendas e trilha sonora.',
-                    imageUrl: `https://picsum.photos/seed/${Date.now() + 2}/400/200`,
-                    link: `https://example.com/job/${Date.now() + 2}`
-                }
-            ];
-            
-            let addedCount = 0;
-            let duplicateCount = 0;
-            
-            const processNewOpportunities = async () => {
-                const opportunitiesToProcess: Omit<Opportunity, 'id'>[] = [];
-                
-                for (const opp of mockApiResponse) {
-                    const isDuplicate = opportunities.some(existingOpp => 
-                        (opp.link && existingOpp.link && existingOpp.link === opp.link) ||
-                        (existingOpp.title.toLowerCase() === opp.title.toLowerCase() && existingOpp.clientOrSource.toLowerCase() === opp.clientOrSource.toLowerCase())
-                    );
-                    if (!isDuplicate) {
-                        opportunitiesToProcess.push(opp);
-                    } else {
-                        duplicateCount++;
-                    }
-                }
-
-                const analyzedOpportunities = await Promise.all(
-                    opportunitiesToProcess.map(async (opp) => {
-                        try {
-                            const analysis = await analyzeOpportunityWithAI(opp);
-                            return { ...opp, aiAnalysis: analysis || undefined };
-                        } catch (error) {
-                            console.error("AI Analysis failed during search for opportunity:", opp.title, error);
-                            return opp;
-                        }
-                    })
-                );
-
-                if (analyzedOpportunities.length > 0) {
-                    const newOpportunitiesWithIds: Opportunity[] = analyzedOpportunities.map((opp, index) => ({
-                        id: `opp-${Date.now()}-${index}`,
-                        ...opp
-                    }));
-                    setOpportunities(prev => [...newOpportunitiesWithIds, ...prev]);
-                    addedCount = newOpportunitiesWithIds.length;
-                }
-            };
-
-            await processNewOpportunities();
-            
-            if (addedCount > 0) {
-                addNotification({ 
-                    message: `${addedCount} nova(s) oportunidade(s) analisada(s) e adicionada(s)!`,
-                    details: duplicateCount > 0 ? `${duplicateCount} duplicata(s) foram ignoradas.` : undefined,
-                    type: NotificationColorType.Success 
-                });
-            } else {
-                 addNotification({ 
-                    message: "Nenhuma nova oportunidade encontrada.",
-                    details: "Sua lista já está atualizada.",
-                    type: NotificationColorType.Success
-                });
-            }
-
-        } catch (error) {
-            console.error("Error finding new opportunities:", error);
-            addNotification({ message: 'Erro ao buscar vagas', details: 'Não foi possível conectar ao serviço de busca.', type: NotificationColorType.Alert });
-        } finally {
+        await new Promise(resolve => setTimeout(resolve, 2500)); // Simulate search
+        
+        const enabledSources = searchSources.filter(s => s.enabled);
+        if (enabledSources.length === 0) {
+            addNotification({ message: "Nenhuma fonte de busca ativa.", details: "Vá em Configurações > Integrações para ativar uma.", type: NotificationColorType.Warning });
             setIsSearchingOpportunities(false);
-        }
-    }, [searchSources, addNotification, opportunities]);
-
-    const analyzeOpportunity = useCallback(async (opportunityId: string) => {
-        const opportunity = opportunities.find(o => o.id === opportunityId);
-        if (!opportunity || opportunity.aiAnalysis) return;
-
-        setAnalyzingOpportunityId(opportunityId);
-        try {
-            const analysis = await analyzeOpportunityWithAI(opportunity);
-            if (analysis) {
-                const updatedOpportunity = { ...opportunity, aiAnalysis: analysis };
-                setOpportunities(prev => prev.map(o => o.id === opportunityId ? updatedOpportunity : o));
-            } else {
-                addNotification({
-                    message: 'Falha na Análise de IA',
-                    details: 'Não foi possível analisar a oportunidade.',
-                    type: NotificationColorType.Alert
-                });
-            }
-        } catch (error) {
-            console.error("Error in analyzeOpportunity:", error);
-            addNotification({
-                message: 'Erro na Análise de IA',
-                details: 'Ocorreu um erro. Verifique o console.',
-                type: NotificationColorType.Alert
-            });
-        } finally {
-            setAnalyzingOpportunityId(null);
-        }
-    }, [opportunities, addNotification]);
-
-    const generateProposalForOpportunity = useCallback(async (opportunityId: string): Promise<Partial<CommercialQuote> | null> => {
-        const opportunity = opportunities.find(o => o.id === opportunityId);
-        if (!opportunity) {
-            addNotification({ message: 'Oportunidade não encontrada.', type: NotificationColorType.Alert });
-            return null;
+            return;
         }
 
-        setIsGeneratingProposalId(opportunityId);
-        try {
-            const draft = await generateProposalDraft(opportunity, catalogServices);
-            if (draft) {
-                const finalDraft: Partial<CommercialQuote> = {
-                    ...draft,
-                    client: opportunity.clientOrSource,
-                    status: QuoteStatus.Draft,
-                    sentDate: new Date().toISOString(),
-                    validUntil: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString(),
-                    quoteNumber: `ORC-${new Date().getFullYear()}-${String(quotes.length + 1).padStart(3, '0')}`,
-                };
-                addNotification({ message: 'Rascunho de orçamento gerado com sucesso!', type: NotificationColorType.Success });
-                return finalDraft;
-            } else {
-                addNotification({ message: 'Falha ao gerar rascunho.', details: 'A IA não conseguiu processar a solicitação.', type: NotificationColorType.Alert });
-                return null;
-            }
-        } catch (error) {
-            console.error(error);
-            addNotification({ message: 'Erro ao gerar rascunho.', details: 'Verifique o console para mais detalhes.', type: NotificationColorType.Alert });
-            return null;
-        } finally {
-            setIsGeneratingProposalId(null);
-        }
-    }, [opportunities, catalogServices, addNotification, quotes.length]);
+        const newOpp: Omit<Opportunity, 'id'> = {
+            title: 'Fotografia de Produto para E-commerce (Busca Automática)',
+            clientOrSource: enabledSources[0].name,
+            budget: 1500,
+            status: OpportunityStatus.Prospecting,
+            description: 'Nova oportunidade encontrada automaticamente com base em suas palavras-chave.',
+            imageUrl: `https://picsum.photos/seed/${Date.now()}/400/200`,
+        };
+        await addOpportunity(newOpp);
+        
+        addNotification({ message: "1 nova oportunidade encontrada!", type: NotificationColorType.Success });
+        setIsSearchingOpportunities(false);
+    }, [searchSources, addOpportunity, addNotification]);
 
 
 
@@ -1575,8 +1421,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     kanbanFilters, kanbanViews,
     searchSources, addSearchSource, updateSearchSource, deleteSearchSource,
     isSearchingOpportunities, findNewOpportunities,
-    analyzingOpportunityId, analyzeOpportunity,
-    isGeneratingProposalId, generateProposalForOpportunity,
     login, logout, setCurrentPage, addOrder, updateOrder, deleteOrder,
     handleStatusChange, addNotification, removeNotification,
     updateKanbanFilters, saveKanbanView, applyKanbanView, deleteKanbanView, clearFilters, setIsStalledFilterActive,

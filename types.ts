@@ -71,6 +71,16 @@ export interface Invoice {
 
 export type Priority = 'Baixa' | 'Média' | 'Alta' | 'Urgente';
 
+// --- File Management Types ---
+export interface FileAttachment {
+  id: string;
+  name: string;
+  url: string;
+  size: number;
+  uploadStatus: 'pending' | 'uploading' | 'completed' | 'failed';
+  progress?: number; // 0 to 100
+}
+
 
 export interface ServiceOrder {
   id: string;
@@ -97,6 +107,7 @@ export interface ServiceOrder {
   customFields?: Record<string, string | number | boolean>;
   proofingGallery?: ProofImage[];
   notes?: string;
+  files?: FileAttachment[];
   priority?: Priority;
   _rowIndex?: number;
 }
@@ -216,6 +227,36 @@ export interface CommercialQuote {
   lossReason?: 'Preço' | 'Prazo' | 'Concorrência' | 'Escopo' | 'Outro';
 }
 
+// --- Opportunities Types ---
+export enum OpportunityStatus {
+  Prospecting = 'Prospecção',
+  ForAnalysis = 'Para Análise',
+  Contacted = 'Contatado',
+  Negotiating = 'Negociando',
+  Won = 'Ganho',
+  Lost = 'Perdido',
+}
+
+export interface Opportunity {
+  id: string;
+  title: string;
+  clientOrSource: string;
+  budget?: number;
+  deadline?: string; // ISO String
+  link?: string;
+  description?: string;
+  status: OpportunityStatus;
+  lossReason?: 'Preço' | 'Prazo' | 'Concorrência' | 'Escopo' | 'Outro';
+  lossNotes?: string;
+  imageUrl?: string;
+  aiAnalysis?: {
+    summary: string;
+    complexity: 'Baixa' | 'Média' | 'Alta';
+    budgetAnalysis: string;
+  };
+}
+
+
 // --- Catalog Service Item Type ---
 export interface CatalogServiceItem {
   id: string;
@@ -232,6 +273,7 @@ export interface KanbanFilters {
   startDate?: string;
   endDate?: string;
   priority?: Priority;
+  customFields?: Record<string, any>;
 }
 
 export interface KanbanView {
@@ -316,4 +358,13 @@ export interface ChatChannel {
   members: string[]; // array of user IDs
   lastMessage?: ChatMessage;
   unreadCount: number; // This will be calculated on the client
+}
+
+// --- Integrations Types ---
+export interface SearchSource {
+  id: string;
+  name: 'Workana' | '99Freelas';
+  apiKey: string;
+  keywords: string; // Comma-separated
+  enabled: boolean;
 }

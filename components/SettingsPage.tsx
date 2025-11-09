@@ -1,11 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Settings, PlusCircle, Edit, Trash2, BookOpen, Save, Workflow, Type, Hash, Calendar, ToggleLeft, ListChecks, GripVertical, ChevronDown, Check } from 'lucide-react';
+import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
+import { Settings, PlusCircle, Edit, Trash2, BookOpen, Save, Workflow, Type, Hash, Calendar, ToggleLeft, ListChecks, GripVertical, ChevronDown, Check, User as UserIcon, Kanban, History, Loader, Network } from 'lucide-react';
 import { useAppContext } from './AppContext';
 // FIX: Import NotificationColorType to use enum members for type safety.
-import { User, UserRole, CatalogServiceItem, KanbanColumn, CustomFieldDefinition, CustomFieldType, NotificationColorType } from '../types';
+import { User, UserRole, CatalogServiceItem, KanbanColumn, CustomFieldDefinition, CustomFieldType, NotificationColorType, SearchSource } from '../types';
 import { UserFormModal } from './UserFormModal';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { ServiceItemFormModal } from './ServiceItemFormModal';
+import { SearchSourceModal } from './SearchSourceModal';
+
+const ActivityLogPage = lazy(() => import('./ActivityLogPage').then(module => ({ default: module.ActivityLogPage })));
 
 
 const roleColors: Record<UserRole, string> = {
@@ -379,6 +382,102 @@ const KanbanSettings = () => {
     );
 };
 
+const IntegrationsSettings = () => {
+    const { searchSources, addSearchSource, updateSearchSource, deleteSearchSource } = useAppContext();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [sourceToEdit, setSourceToEdit] = useState<SearchSource | null>(null);
+    const [sourceToDelete, setSourceToDelete] = useState<SearchSource | null>(null);
+
+    const handleOpenModal = (source: SearchSource | null) => {
+        setSourceToEdit(source);
+        setIsModalOpen(true);
+    };
+
+    const handleSaveSource = (source: SearchSource) => {
+        if (sourceToEdit) {
+            updateSearchSource(source);
+        } else {
+            addSearchSource(source);
+        }
+        setIsModalOpen(false);
+    };
+    
+    const handleDelete = async () => {
+        if (sourceToDelete) {
+            deleteSearchSource(sourceToDelete.id);
+            setSourceToDelete(null);
+        }
+    };
+
+    const maskApiKey = (key: string) => {
+        if (key.length <= 4) return '****';
+        return `${key.substring(0, 4)}...${key.substring(key.length - 4)}`;
+    };
+
+    return (
+        <div className="bg-black/20 p-4 md:p-6 rounded-lg border border-granite-gray/20 overflow-hidden flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-200">Integrações e Fontes de Oportunidades</h2>
+                <button onClick={() => handleOpenModal(null)} className="flex items-center px-3 py-1.5 bg-cadmium-yellow/80 rounded-lg text-xs font-bold text-coal-black hover:bg-cadmium-yellow"><PlusCircle size={16} className="mr-2" />Nova Fonte</button>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                    <tbody>
+                        {searchSources.map(source => (
+                            <tr key={source.id} className="border-b border-granite-gray/20 hover:bg-granite-gray/10">
+                                <td className="p-3">
+                                    <p className="font-semibold text-gray-100">{source.name}</p>
+                                    <p className="text-sm text-granite-gray-light truncate max-w-xs" title={source.keywords}>Palavras-chave: {source.keywords}</p>
+                                </td>
+                                <td className="p-3 font-mono text-sm text-granite-gray-light">{maskApiKey(source.apiKey)}</td>
+                                <td className="p-3">
+                                    <span className={`px-2 py-1 text-xs font-bold rounded-full border ${source.enabled ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-gray-500/20 text-gray-300 border-gray-500/30'}`}>
+                                        {source.enabled ? 'Ativo' : 'Inativo'}
+                                    </span>
+                                </td>
+                                <td className="p-3 text-right">
+                                    <button onClick={() => handleOpenModal(source)} className="p-2 text-granite-gray-light hover:text-cadmium-yellow transition-colors mr-1"><Edit size={18} /></button>
+                                    <button onClick={() => setSourceToDelete(source)} className="p-2 text-granite-gray-light hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                 {searchSources.length === 0 && (
+                    <div className="text-center py-8 text-granite-gray">
+                        Nenhuma fonte de busca configurada.
+                    </div>
+                 )}
+            </div>
+            {isModalOpen && <SearchSourceModal source={sourceToEdit} onClose={() => setIsModalOpen(false)} onSave={handleSaveSource} />}
+            {sourceToDelete && (
+                <ConfirmDeleteModal
+                    title="Confirmar Exclusão de Fonte"
+                    message={`Tem certeza que deseja excluir a fonte de busca "<strong>${sourceToDelete.name}</strong>"?`}
+                    onConfirm={handleDelete}
+                    onCancel={() => setSourceToDelete(null)}
+                />
+            )}
+        </div>
+    );
+};
+
+
+const TabButton: React.FC<{ icon: React.ReactNode, label: string, isActive: boolean, onClick: () => void }> = ({ icon, label, isActive, onClick }) => (
+    <button
+        onClick={onClick}
+        className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors ${
+            isActive
+                ? 'border-b-2 border-cadmium-yellow text-cadmium-yellow'
+                : 'text-granite-gray-light border-transparent hover:text-white'
+        }`}
+    >
+        {icon}
+        {label}
+    </button>
+);
+
+type SettingsTab = 'geral' | 'fluxo' | 'integracoes' | 'log';
 
 export const SettingsPage: React.FC = () => {
     const { 
@@ -386,6 +485,7 @@ export const SettingsPage: React.FC = () => {
         catalogServices, addCatalogService, updateCatalogService, deleteCatalogService
     } = useAppContext();
     
+    const [activeTab, setActiveTab] = useState<SettingsTab>('geral');
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
     const [userToEdit, setUserToEdit] = useState<User | null>(null);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
@@ -448,87 +548,110 @@ export const SettingsPage: React.FC = () => {
         }
     };
 
-  return (
-    <div className="max-w-7xl mx-auto text-white p-4 h-full flex flex-col">
-      <div className="flex-shrink-0 flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
-        <div className="flex items-center">
-            <Settings size={32} className="text-cadmium-yellow mr-4" />
-            <h1 className="text-2xl md:text-3xl font-bold font-display">Configurações</h1>
+    const suspenseFallback = (
+        <div className="flex h-full w-full items-center justify-center">
+            <Loader className="animate-spin text-cadmium-yellow" size={48} />
         </div>
+    );
+
+  return (
+    <div className="max-w-7xl mx-auto text-white h-full flex flex-col">
+      <div className="flex-shrink-0 flex items-center">
+        <Settings size={32} className="text-cadmium-yellow mr-4" />
+        <h1 className="text-2xl md:text-3xl font-bold font-display">Configurações</h1>
+      </div>
+
+      <div className="flex-shrink-0 border-b border-granite-gray/20 my-4">
+        <TabButton label="Geral" icon={<UserIcon size={16} />} isActive={activeTab === 'geral'} onClick={() => setActiveTab('geral')} />
+        <TabButton label="Fluxo de Trabalho" icon={<Kanban size={16} />} isActive={activeTab === 'fluxo'} onClick={() => setActiveTab('fluxo')} />
+        <TabButton label="Integrações" icon={<Network size={16} />} isActive={activeTab === 'integracoes'} onClick={() => setActiveTab('integracoes')} />
+        <TabButton label="Log de Atividade" icon={<History size={16} />} isActive={activeTab === 'log'} onClick={() => setActiveTab('log')} />
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-hidden">
-        <div className="flex flex-col gap-6 overflow-y-auto pr-2">
-            {/* User Management */}
-            <div className="bg-black/20 p-4 md:p-6 rounded-lg border border-granite-gray/20 overflow-hidden flex flex-col">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold text-gray-200">Gerenciamento de Usuários</h2>
-                  <button onClick={handleOpenAddUserModal} className="flex items-center px-3 py-1.5 bg-cadmium-yellow/80 rounded-lg text-xs font-bold text-coal-black hover:bg-cadmium-yellow"><PlusCircle size={16} className="mr-2" />Novo Usuário</button>
+      <div className="flex-1 overflow-y-auto pr-2">
+        {activeTab === 'geral' && (
+            <div className="grid grid-cols-1 gap-6">
+                {/* User Management */}
+                <div className="bg-black/20 p-4 md:p-6 rounded-lg border border-granite-gray/20 overflow-hidden flex flex-col">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-xl font-semibold text-gray-200">Gerenciamento de Usuários</h2>
+                      <button onClick={handleOpenAddUserModal} className="flex items-center px-3 py-1.5 bg-cadmium-yellow/80 rounded-lg text-xs font-bold text-coal-black hover:bg-cadmium-yellow"><PlusCircle size={16} className="mr-2" />Novo Usuário</button>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <tbody>
+                                {users.map(user => (
+                                    <tr key={user.id} className="border-b border-granite-gray/20 hover:bg-granite-gray/10">
+                                        <td className="p-3 flex items-center">
+                                            <img src={user.picture} alt={user.name} className="h-10 w-10 rounded-full mr-4" />
+                                            <div>
+                                                <p className="font-semibold text-gray-100">{user.name}</p>
+                                                <p className="text-sm text-granite-gray-light">{user.email}</p>
+                                            </div>
+                                        </td>
+                                        <td className="p-3">
+                                            <span className={`px-2 py-1 text-xs font-bold rounded-full border ${roleColors[user.role]}`}>
+                                                {user.role}
+                                            </span>
+                                        </td>
+                                        <td className="p-3 text-right">
+                                            <button onClick={() => handleOpenEditUserModal(user)} className="p-2 text-granite-gray-light hover:text-cadmium-yellow transition-colors mr-1"><Edit size={18} /></button>
+                                            <button onClick={() => setUserToDelete(user)} disabled={user.id === currentUser?.id} className="p-2 text-granite-gray-light hover:text-red-500 transition-colors disabled:opacity-30"><Trash2 size={18} /></button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <tbody>
-                            {users.map(user => (
-                                <tr key={user.id} className="border-b border-granite-gray/20 hover:bg-granite-gray/10">
-                                    <td className="p-3 flex items-center">
-                                        <img src={user.picture} alt={user.name} className="h-10 w-10 rounded-full mr-4" />
-                                        <div>
-                                            <p className="font-semibold text-gray-100">{user.name}</p>
-                                            <p className="text-sm text-granite-gray-light">{user.email}</p>
-                                        </div>
-                                    </td>
-                                    <td className="p-3">
-                                        <span className={`px-2 py-1 text-xs font-bold rounded-full border ${roleColors[user.role]}`}>
-                                            {user.role}
-                                        </span>
-                                    </td>
-                                    <td className="p-3 text-right">
-                                        <button onClick={() => handleOpenEditUserModal(user)} className="p-2 text-granite-gray-light hover:text-cadmium-yellow transition-colors mr-1"><Edit size={18} /></button>
-                                        <button onClick={() => setUserToDelete(user)} disabled={user.id === currentUser?.id} className="p-2 text-granite-gray-light hover:text-red-500 transition-colors disabled:opacity-30"><Trash2 size={18} /></button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                 {/* Catalog Management */}
+                <div className="bg-black/20 p-4 md:p-6 rounded-lg border border-granite-gray/20 overflow-hidden flex flex-col">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="text-xl font-semibold text-gray-200">Catálogo de Serviços</h2>
+                      <button onClick={handleOpenAddServiceModal} className="flex items-center px-3 py-1.5 bg-cadmium-yellow/80 rounded-lg text-xs font-bold text-coal-black hover:bg-cadmium-yellow"><PlusCircle size={16} className="mr-2" />Novo Serviço</button>
+                    </div>
+                     <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <tbody>
+                                {catalogServices.map(service => (
+                                    <tr key={service.id} className="border-b border-granite-gray/20 hover:bg-granite-gray/10">
+                                        <td className="p-3">
+                                            <p className="font-semibold text-gray-100">{service.title}</p>
+                                            <p className="text-sm text-granite-gray-light truncate max-w-xs">{service.description}</p>
+                                        </td>
+                                        <td className="p-3 font-semibold text-lg text-green-400 text-right">
+                                            {service.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </td>
+                                        <td className="p-3 text-right">
+                                            <button onClick={() => handleOpenEditServiceModal(service)} className="p-2 text-granite-gray-light hover:text-cadmium-yellow transition-colors mr-1"><Edit size={18} /></button>
+                                            <button onClick={() => setServiceToDelete(service)} className="p-2 text-granite-gray-light hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-             {/* Catalog Management */}
-            <div className="bg-black/20 p-4 md:p-6 rounded-lg border border-granite-gray/20 overflow-hidden flex flex-col">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold text-gray-200">Catálogo de Serviços</h2>
-                  <button onClick={handleOpenAddServiceModal} className="flex items-center px-3 py-1.5 bg-cadmium-yellow/80 rounded-lg text-xs font-bold text-coal-black hover:bg-cadmium-yellow"><PlusCircle size={16} className="mr-2" />Novo Serviço</button>
-                </div>
-                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <tbody>
-                            {catalogServices.map(service => (
-                                <tr key={service.id} className="border-b border-granite-gray/20 hover:bg-granite-gray/10">
-                                    <td className="p-3">
-                                        <p className="font-semibold text-gray-100">{service.title}</p>
-                                        <p className="text-sm text-granite-gray-light truncate max-w-xs">{service.description}</p>
-                                    </td>
-                                    <td className="p-3 font-semibold text-lg text-green-400 text-right">
-                                        {service.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                    </td>
-                                    <td className="p-3 text-right">
-                                        <button onClick={() => handleOpenEditServiceModal(service)} className="p-2 text-granite-gray-light hover:text-cadmium-yellow transition-colors mr-1"><Edit size={18} /></button>
-                                        <button onClick={() => setServiceToDelete(service)} className="p-2 text-granite-gray-light hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+        )}
+        {activeTab === 'fluxo' && (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <KanbanSettings />
+                <CustomFieldsSettings />
             </div>
-        </div>
-
-        <div className="flex flex-col gap-6 overflow-y-auto pr-2">
-            {/* Kanban Settings */}
-            <KanbanSettings />
-            {/* Custom Fields Settings */}
-            <CustomFieldsSettings />
-        </div>
-
+        )}
+         {activeTab === 'integracoes' && (
+            <div className="grid grid-cols-1 gap-6">
+                <IntegrationsSettings />
+            </div>
+        )}
+         {activeTab === 'log' && (
+            <Suspense fallback={suspenseFallback}>
+                <div className="h-full">
+                    <ActivityLogPage />
+                </div>
+            </Suspense>
+        )}
       </div>
       
       {isUserModalOpen && (

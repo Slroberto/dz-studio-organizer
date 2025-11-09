@@ -6,6 +6,7 @@ import { DollarSign, BarChart3, TrendingUp, FileText, Briefcase } from 'lucide-r
 
 interface CommercialDashboardPageProps {
     onConvertToOS: (quote: CommercialQuote) => void;
+    onOpenEditor: (quote: Partial<CommercialQuote> | null) => void;
 }
 
 type CommercialTab = 'dashboard' | 'quotes';
@@ -326,7 +327,7 @@ function DashboardContent() {
     );
 };
 
-export const CommercialDashboardPage: React.FC<CommercialDashboardPageProps> = ({ onConvertToOS }) => {
+export const CommercialDashboardPage: React.FC<CommercialDashboardPageProps> = ({ onConvertToOS, onOpenEditor }) => {
     const [activeTab, setActiveTab] = useState<CommercialTab>('dashboard');
 
     return (
@@ -347,7 +348,7 @@ export const CommercialDashboardPage: React.FC<CommercialDashboardPageProps> = (
             </div>
             <div className="flex-1 overflow-y-auto">
                 {activeTab === 'dashboard' && <DashboardContent />}
-                {activeTab === 'quotes' && <QuoteManagementPage onConvertToOS={onConvertToOS} />}
+                {activeTab === 'quotes' && <QuoteManagementPage onConvertToOS={onConvertToOS} onOpenEditor={onOpenEditor} />}
             </div>
         </div>
     );

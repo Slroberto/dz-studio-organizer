@@ -1,12 +1,13 @@
 import React, { useMemo } from 'react';
 import { useAppContext } from './AppContext';
-import { ServiceOrder, Task, Comment } from '../types';
-import { Briefcase, ListTodo, MessageSquare, PlusCircle, LayoutGrid, GanttChartSquare, LayoutDashboard } from 'lucide-react';
+import { ServiceOrder, Task, Comment, CustomFieldDefinition } from '../types';
+import { Briefcase, ListTodo, MessageSquare, PlusCircle, LayoutGrid, GanttChartSquare, LayoutDashboard, ListChecks } from 'lucide-react';
 
 interface SearchResults {
     orders: ServiceOrder[];
     tasks: { task: Task; order: ServiceOrder }[];
     comments: { comment: Comment; order: ServiceOrder }[];
+    customFields: { field: CustomFieldDefinition; value: any; order: ServiceOrder }[];
 }
 
 interface GlobalSearchResultsProps {
@@ -24,7 +25,7 @@ export const GlobalSearchResults: React.FC<GlobalSearchResultsProps> = ({
     onAddOrderClick,
     onAddFromTemplateClick
 }) => {
-    const { orders, setCurrentPage } = useAppContext();
+    const { orders, setCurrentPage, customFieldDefinitions } = useAppContext();
 
     const allCommands = useMemo(() => [
         { name: 'Nova Ordem de Serviço', action: onAddOrderClick, icon: <PlusCircle size={16} /> },
@@ -42,12 +43,13 @@ export const GlobalSearchResults: React.FC<GlobalSearchResultsProps> = ({
 
     const results = useMemo<SearchResults>(() => {
         if (!lowercasedTerm) {
-            return { orders: [], tasks: [], comments: [] };
+            return { orders: [], tasks: [], comments: [], customFields: [] };
         }
 
         const foundOrders: ServiceOrder[] = [];
         const foundTasks: { task: Task; order: ServiceOrder }[] = [];
         const foundComments: { comment: Comment; order: ServiceOrder }[] = [];
+        const foundCustomFields: { field: CustomFieldDefinition; value: any; order: ServiceOrder }[] = [];
 
         orders.forEach(order => {
             // Search in order fields
@@ -72,10 +74,24 @@ export const GlobalSearchResults: React.FC<GlobalSearchResultsProps> = ({
                     foundComments.push({ comment, order });
                 }
             });
+            
+            // Search in custom fields
+            if (order.customFields && customFieldDefinitions) {
+                for (const fieldId in order.customFields) {
+                    const fieldDef = customFieldDefinitions.find(def => def.id === fieldId);
+                    const value = order.customFields[fieldId];
+                    
+                    if (fieldDef && fieldDef.type === 'text' && typeof value === 'string') {
+                        if (value.toLowerCase().includes(lowercasedTerm)) {
+                            foundCustomFields.push({ field: fieldDef, value, order });
+                        }
+                    }
+                }
+            }
         });
 
-        return { orders: foundOrders, tasks: foundTasks, comments: foundComments };
-    }, [lowercasedTerm, orders]);
+        return { orders: foundOrders, tasks: foundTasks, comments: foundComments, customFields: foundCustomFields };
+    }, [lowercasedTerm, orders, customFieldDefinitions]);
 
     const handleResultClick = (order: ServiceOrder) => {
         onSelectOrder(order);
@@ -90,7 +106,7 @@ export const GlobalSearchResults: React.FC<GlobalSearchResultsProps> = ({
         );
     };
 
-    const totalResults = filteredCommands.length + results.orders.length + results.tasks.length + results.comments.length;
+    const totalResults = filteredCommands.length + results.orders.length + results.tasks.length + results.comments.length + results.customFields.length;
 
     return (
         <div className="absolute top-full mt-2 w-full md:w-[450px] bg-coal-black border border-granite-gray/20 rounded-lg shadow-2xl z-50 max-h-[60vh] flex flex-col" style={{ animation: 'fadeIn 0.2s ease-out forwards'}}>
@@ -154,6 +170,22 @@ export const GlobalSearchResults: React.FC<GlobalSearchResultsProps> = ({
                                             <div>
                                                 <p className="font-semibold text-sm text-white truncate">{highlightMatch(comment.text)}</p>
                                                 <p className="text-xs text-gray-400">por {comment.userName} em {order.orderNumber}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </section>
+                        )}
+                         {results.customFields.length > 0 && (
+                            <section className="mt-2">
+                                <h3 className="px-2 py-1 text-xs font-semibold text-granite-gray-light uppercase tracking-wider">Campos Personalizados</h3>
+                                {results.customFields.map(({ field, value, order }) => (
+                                    <div key={`cf-${order.id}-${field.id}`} onClick={() => handleResultClick(order)} className="p-2 rounded-md hover:bg-granite-gray/10 cursor-pointer">
+                                        <div className="flex items-center">
+                                            <ListChecks size={16} className="mr-3 text-purple-400 flex-shrink-0" />
+                                            <div>
+                                                <p className="font-semibold text-sm text-white">{highlightMatch(String(value))}</p>
+                                                <p className="text-xs text-gray-400">em {field.name} ({order.orderNumber} - {order.client})</p>
                                             </div>
                                         </div>
                                     </div>

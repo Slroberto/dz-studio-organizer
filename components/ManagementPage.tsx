@@ -10,6 +10,7 @@ const AnalysisPage = lazy(() => import('./AnalysisPage').then(module => ({ defau
 interface ManagementPageProps {
     onConvertToOS: (quote: CommercialQuote) => void;
     onSelectOrder: (order: ServiceOrder) => void;
+    onOpenQuoteEditor: (quote: Partial<CommercialQuote> | null) => void;
 }
 
 type ManagementTab = 'comercial' | 'financeiro' | 'analise';
@@ -29,7 +30,8 @@ const TabButton: React.FC<{ icon: React.ReactNode, label: string, isActive: bool
 );
 
 
-export const ManagementPage: React.FC<ManagementPageProps> = ({ onConvertToOS, onSelectOrder }) => {
+export const ManagementPage: React.FC<ManagementPageProps> = ({ onConvertToOS, onSelectOrder, onOpenQuoteEditor }) => {
+    
     const [activeTab, setActiveTab] = useState<ManagementTab>('comercial');
 
     const suspenseFallback = (
@@ -40,34 +42,17 @@ export const ManagementPage: React.FC<ManagementPageProps> = ({ onConvertToOS, o
     
     return (
         <div className="h-full flex flex-col">
-            <div className="flex-shrink-0 border-b border-granite-gray/20 -mt-6 -mx-6 px-4 mb-6">
-                <TabButton 
-                    label="Comercial" 
-                    icon={<Briefcase size={16} />} 
-                    isActive={activeTab === 'comercial'} 
-                    onClick={() => setActiveTab('comercial')} 
-                />
-                <TabButton 
-                    label="Financeiro" 
-                    icon={<Landmark size={16} />} 
-                    isActive={activeTab === 'financeiro'} 
-                    onClick={() => setActiveTab('financeiro')} 
-                />
-                <TabButton 
-                    label="Análise" 
-                    icon={<TrendingUp size={16} />} 
-                    isActive={activeTab === 'analise'} 
-                    onClick={() => setActiveTab('analise')} 
-                />
+            <div className="flex-shrink-0 border-b border-granite-gray/20 -mt-4 -mx-6 px-4 mb-4">
+                <TabButton label="Comercial" icon={<Briefcase size={16} />} isActive={activeTab === 'comercial'} onClick={() => setActiveTab('comercial')} />
+                <TabButton label="Financeiro" icon={<Landmark size={16} />} isActive={activeTab === 'financeiro'} onClick={() => setActiveTab('financeiro')} />
+                <TabButton label="Análise" icon={<TrendingUp size={16} />} isActive={activeTab === 'analise'} onClick={() => setActiveTab('analise')} />
             </div>
-
-            <div className="flex-1 overflow-y-auto">
+            
+            <div className="flex-1 overflow-y-auto -mx-6 px-6">
                  <Suspense fallback={suspenseFallback}>
-                    <div className="w-full h-full">
-                       {activeTab === 'comercial' && <CommercialDashboardPage onConvertToOS={onConvertToOS} />}
-                       {activeTab === 'financeiro' && <FinancialPage onSelectOrder={onSelectOrder} />}
-                       {activeTab === 'analise' && <AnalysisPage />}
-                    </div>
+                    {activeTab === 'comercial' && <CommercialDashboardPage onConvertToOS={onConvertToOS} onOpenEditor={onOpenQuoteEditor} />}
+                    {activeTab === 'financeiro' && <FinancialPage onSelectOrder={onSelectOrder} />}
+                    {activeTab === 'analise' && <AnalysisPage />}
                 </Suspense>
             </div>
         </div>

@@ -45,6 +45,7 @@ export const SERVICE_ORDER_TEMPLATES: ServiceOrderTemplate[] = [
 
 export const DEFAULT_KANBAN_COLUMNS: KanbanColumn[] = [
   { title: 'Aguardando produto', status: 'Aguardando produto', color: '#3b82f6' }, // Blue
+  { title: 'Cancelado', status: 'Cancelado', color: '#6b7280' }, // Gray
   { title: 'Conferência de Produto', status: 'Conferência de Produto', color: '#ef4444' }, // Red
   { title: 'Em foto', status: 'Em foto', color: '#f97316' }, // Orange
   { title: 'Revelação', status: 'Revelação', color: '#eab308' }, // Yellow

@@ -34,9 +34,18 @@ export const getFilesInFolder = async (folderId: string): Promise<any[]> => {
 export const uploadFile = async (folderId: string, file: File, onProgress: (progress: number) => void): Promise<any> => {
     console.log(`[MOCK] Uploading file "${file.name}" to folder: ${folderId}`);
     
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         let progress = 0;
         onProgress(progress);
+        
+        // Simulate a potential random failure
+        if (Math.random() < 0.1) { // 10% chance of failure
+            setTimeout(() => {
+                console.error(`[MOCK] Upload failed for "${file.name}"`);
+                reject(new Error('Mock upload failed'));
+            }, 500);
+            return;
+        }
 
         const interval = setInterval(() => {
             progress += 0.25;
@@ -44,7 +53,7 @@ export const uploadFile = async (folderId: string, file: File, onProgress: (prog
             if (progress >= 1) {
                 clearInterval(interval);
                 console.log(`[MOCK] Upload complete for "${file.name}"`);
-                resolve({ success: true, message: 'Mock upload complete' });
+                resolve({ success: true, message: 'Mock upload complete', link: '#' });
             }
         }, 300); // Simulate upload over 1.2 seconds
     });

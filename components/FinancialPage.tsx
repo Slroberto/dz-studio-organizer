@@ -215,6 +215,65 @@ const CostDistributionChart = ({ fixed, variable }: { fixed: number, variable: n
     );
 };
 
+const CostByCategoryChart = ({ fixedCosts, variableCosts }: { fixedCosts: FixedCost[], variableCosts: VariableCost[] }) => {
+    const chartRef = useRef<HTMLCanvasElement>(null);
+    const chartInstance = useRef<any>(null);
+
+    useEffect(() => {
+        if (!chartRef.current) return;
+
+        const costsByCategory: { [key in FinancialCategory]?: number } = {};
+        
+        fixedCosts.forEach(cost => {
+            costsByCategory[cost.category] = (costsByCategory[cost.category] || 0) + cost.value;
+        });
+
+        variableCosts.forEach(cost => {
+            costsByCategory[cost.category] = (costsByCategory[cost.category] || 0) + cost.value;
+        });
+        
+        const labels = Object.keys(costsByCategory);
+        const data = Object.values(costsByCategory);
+        
+        const backgroundColors = ['#DCFF00', '#3b82f6', '#f97316', '#a855f7', '#ec4899', '#ef4444', '#16a34a', '#69695A'];
+
+        if (chartInstance.current) chartInstance.current.destroy();
+
+        const ctx = chartRef.current.getContext('2d');
+        if (!ctx) return;
+        
+        chartInstance.current = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels,
+                datasets: [{
+                    data,
+                    backgroundColor: backgroundColors,
+                    borderColor: '#232323',
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right', labels: { color: '#E5E5E5', font: { family: 'Poppins' } } },
+                    title: { display: true, text: 'Custos por Categoria (Mês)', color: '#E5E5E5', font: { size: 16, family: 'Poppins' } }
+                }
+            }
+        });
+
+        return () => { if (chartInstance.current) chartInstance.current.destroy(); };
+
+    }, [fixedCosts, variableCosts]);
+
+    return (
+        <div className="bg-black/20 p-4 rounded-lg border border-granite-gray/20 h-full flex flex-col">
+            <div className="flex-1 relative"><canvas ref={chartRef}></canvas></div>
+        </div>
+    );
+};
+
 const DataTable = ({ title, data, onAdd, onEdit, onDelete }: { title: string, data: any[], onAdd: () => void, onEdit: (item: any) => void, onDelete: (item: any) => void }) => (
     <div className="bg-black/20 p-4 rounded-lg border border-granite-gray/20 flex-1 flex flex-col min-h-0">
         <div className="flex justify-between items-center mb-3 flex-shrink-0">
@@ -355,11 +414,13 @@ const FinancialOverview: React.FC = () => {
                 <RevenueEvolutionChart revenueEntries={revenueEntries} />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-64">
-                <BreakEvenChart revenue={financialData.monthlyRevenue} breakEven={financialData.breakEvenPoint} currency="BRL" />
-                <CostDistributionChart fixed={financialData.monthlyFixedCosts} variable={financialData.monthlyVariableCosts} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 h-72">
+                <div className="lg:col-span-1"><BreakEvenChart revenue={financialData.monthlyRevenue} breakEven={financialData.breakEvenPoint} currency="BRL" /></div>
+                <div className="lg:col-span-1"><CostDistributionChart fixed={financialData.monthlyFixedCosts} variable={financialData.monthlyVariableCosts} /></div>
+                <div className="lg:col-span-1"><CostByCategoryChart fixedCosts={fixedCosts} variableCosts={financialData.filteredVariableCosts} /></div>
             </div>
-            <div className="flex-1 flex flex-col min-h-0">
+
+            <div className="flex-1 flex flex-col min-h-0 mt-4">
                 <div className="flex-shrink-0 border-b border-granite-gray/20">
                     <TabButton type="fixed" label="Custos Fixos" />
                     <TabButton type="variable" label="Custos Variáveis" />
