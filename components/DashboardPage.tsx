@@ -443,7 +443,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onSelectOrder }) =
   if (!currentUser) return null;
 
   return (
-    <div className="bg-[#1C1C1C] p-4 md:p-6 rounded-lg h-full flex flex-col gap-6">
+    <div className="max-w-7xl mx-auto w-full bg-[#1C1C1C] p-4 md:p-6 rounded-lg h-full flex flex-col gap-6">
       {/* KPIs */}
       <div className={`grid grid-cols-2 md:grid-cols-3 ${isAdmin ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4`}>
         {isAdmin && (

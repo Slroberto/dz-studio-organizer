@@ -118,7 +118,7 @@ export const ManagementPage: React.FC<ManagementPageProps> = ({ onConvertToOS, o
             </aside>
             <main className="flex-1 overflow-y-auto">
                  <Suspense fallback={suspenseFallback}>
-                    <div className="p-6">
+                    <div className="p-6 max-w-7xl mx-auto w-full h-full">
                         {renderContent()}
                     </div>
                 </Suspense>

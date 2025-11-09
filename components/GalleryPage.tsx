@@ -28,7 +28,7 @@ export const GalleryPage: React.FC<GalleryPageProps> = ({ onSelectOrder }) => {
     }, [deliveredOrders, searchTerm]);
 
     return (
-        <div className="h-full flex flex-col">
+        <div className="max-w-7xl mx-auto w-full h-full flex flex-col">
             <header className="flex-shrink-0 flex justify-between items-center mb-6">
                 <div className="relative">
                     <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-granite-gray" />
