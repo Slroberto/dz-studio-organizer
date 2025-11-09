@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useAppContext } from './AppContext';
 // FIX: Removed incorrect import of 'Partial'. It is a built-in TypeScript utility type.
 import { Opportunity, OpportunityStatus, CommercialQuote } from '../types';
-import { PlusCircle, Edit, Trash2, ArrowRightCircle, DollarSign, Calendar, Link as LinkIcon, Briefcase, X, Loader, Lightbulb, GanttChartSquare, View, Bot, FileSignature } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ArrowRightCircle, DollarSign, Calendar, Link as LinkIcon, Briefcase, X, Loader, Lightbulb, GanttChartSquare, View, Bot, FileSignature, UserCheck } from 'lucide-react';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { TriageView } from './TriageView';
 
@@ -103,9 +103,10 @@ const OpportunityCard: React.FC<{
     onConvertToOS: () => void;
     onOpenQuoteEditor: (quote: Partial<CommercialQuote> | null) => void;
 }> = ({ opportunity, onEdit, onDelete, onConvertToOS, onOpenQuoteEditor }) => {
-    const { analyzeOpportunity, analyzingOpportunityId, generateProposalForOpportunity, isGeneratingProposalId } = useAppContext();
+    const { analyzeOpportunity, analyzingOpportunityId, generateProposalForOpportunity, isGeneratingProposalId, analyzeClientProfile, analyzingProfileId } = useAppContext();
     const isAnalyzing = analyzingOpportunityId === opportunity.id;
     const isGenerating = isGeneratingProposalId === opportunity.id;
+    const isAnalyzingProfile = analyzingProfileId === opportunity.id;
 
     const handleGenerateDraft = async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -138,23 +139,56 @@ const OpportunityCard: React.FC<{
                     </div>
                 </div>
                 <div>
-                    {opportunity.aiAnalysis ? (
+                    {opportunity.aiAnalysis && (
                         <div className="mt-4 p-3 bg-blue-900/20 border-l-4 border-blue-500 rounded-r-lg space-y-2">
-                            <h4 className="font-bold text-blue-300 flex items-center gap-2"><Bot size={16}/> Análise da IA</h4>
+                            <h4 className="font-bold text-blue-300 flex items-center gap-2"><Bot size={16}/> Análise da Oportunidade</h4>
                             <p className="text-sm text-gray-300"><strong>Resumo:</strong> {opportunity.aiAnalysis.summary}</p>
                             <p className="text-sm text-gray-300"><strong>Complexidade:</strong> {opportunity.aiAnalysis.complexity}</p>
                             <p className="text-sm text-gray-300"><strong>Orçamento:</strong> {opportunity.aiAnalysis.budgetAnalysis}</p>
                         </div>
-                    ) : (
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); analyzeOpportunity(opportunity.id); }}
-                            disabled={isAnalyzing}
-                            className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-blue-500/80 text-white font-bold rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-wait transition-all"
-                        >
-                            {isAnalyzing ? <Loader size={18} className="animate-spin" /> : <Bot size={18} />}
-                            {isAnalyzing ? 'Analisando...' : 'Analisar com IA'}
-                        </button>
                     )}
+
+                    {opportunity.clientProfileAnalysis && (
+                         <div className="mt-2 p-3 bg-purple-900/20 border-l-4 border-purple-500 rounded-r-lg space-y-2">
+                            <h4 className="font-bold text-purple-300 flex items-center gap-2"><UserCheck size={16}/> Análise de Perfil</h4>
+                            <p className="text-sm text-gray-300"><strong>Tom:</strong> {opportunity.clientProfileAnalysis.tone}</p>
+                            <p className="text-sm text-gray-300"><strong>Clareza:</strong> {opportunity.clientProfileAnalysis.clarity}</p>
+                            {opportunity.clientProfileAnalysis.redFlags.length > 0 && (
+                                <div>
+                                    <strong className="text-sm text-gray-300">Sinais de Alerta:</strong>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                        {opportunity.clientProfileAnalysis.redFlags.map((flag, i) => (
+                                            <span key={i} className="text-xs font-semibold bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full">{flag}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                        {!opportunity.aiAnalysis && (
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); analyzeOpportunity(opportunity.id); }}
+                                disabled={isAnalyzing}
+                                className="w-full flex items-center justify-center gap-2 px-2 py-2 bg-blue-500/80 text-white font-bold rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-wait transition-all text-sm"
+                            >
+                                {isAnalyzing ? <Loader size={16} className="animate-spin" /> : <Bot size={16} />}
+                                {isAnalyzing ? 'Analisando...' : 'Analisar Vaga'}
+                            </button>
+                        )}
+                         {!opportunity.clientProfileAnalysis && (
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); analyzeClientProfile(opportunity.id); }}
+                                disabled={isAnalyzingProfile}
+                                className="w-full flex items-center justify-center gap-2 px-2 py-2 bg-purple-500/80 text-white font-bold rounded-lg hover:bg-purple-500 disabled:opacity-50 disabled:cursor-wait transition-all text-sm"
+                            >
+                                {isAnalyzingProfile ? <Loader size={16} className="animate-spin" /> : <UserCheck size={16} />}
+                                {isAnalyzingProfile ? 'Analisando...' : 'Analisar Perfil'}
+                            </button>
+                        )}
+                    </div>
+
 
                     <button 
                         onClick={handleGenerateDraft}
@@ -212,9 +246,10 @@ const KanbanView: React.FC<{
     onConvertToOS: (opportunity: Opportunity) => void;
     onOpenQuoteEditor: (quote: Partial<CommercialQuote> | null) => void;
 }> = ({ onConvertToOS, onOpenQuoteEditor }) => {
-    const { opportunities, updateOpportunity } = useAppContext();
+    const { opportunities, updateOpportunity, deleteOpportunity } = useAppContext();
     const [opportunityToEdit, setOpportunityToEdit] = useState<Opportunity | null>(null);
     const [opportunityToDelete, setOpportunityToDelete] = useState<Opportunity | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
      const opportunityColumns = useMemo(() => [
         { title: 'Prospecção', status: OpportunityStatus.Prospecting },
@@ -237,6 +272,28 @@ const KanbanView: React.FC<{
         });
         return grouped;
     }, [opportunities]);
+
+    const handleOpenModal = (opportunity: Opportunity | null) => {
+        setOpportunityToEdit(opportunity);
+        setIsModalOpen(true);
+    };
+
+    const handleSave = async (opportunity: Opportunity) => {
+        if (opportunityToEdit) {
+            await updateOpportunity(opportunity);
+        } else {
+            // This case should be handled by the main page button
+        }
+        setIsModalOpen(false);
+        setOpportunityToEdit(null);
+    };
+    
+    const handleDelete = async () => {
+        if (opportunityToDelete) {
+            await deleteOpportunity(opportunityToDelete.id);
+            setOpportunityToDelete(null);
+        }
+    };
     
     return (
         <div className="relative flex-1 -mx-6 min-h-0">
@@ -248,7 +305,7 @@ const KanbanView: React.FC<{
                             title={column.title}
                             status={column.status}
                             opportunities={opportunitiesByStatus[column.status] || []}
-                            onEdit={(opp) => setOpportunityToEdit(opp)}
+                            onEdit={handleOpenModal}
                             onDelete={(opp) => setOpportunityToDelete(opp)}
                             onConvertToOS={onConvertToOS}
                             onOpenQuoteEditor={onOpenQuoteEditor}
@@ -261,6 +318,23 @@ const KanbanView: React.FC<{
                     <h2 className="text-xl font-bold text-gray-400">Nenhuma oportunidade cadastrada</h2>
                     <p className="mt-2">Clique em "Nova Oportunidade" para começar a prospectar.</p>
                 </div>
+            )}
+            
+            {isModalOpen && (
+                <AddOpportunityModal
+                    opportunity={opportunityToEdit}
+                    onClose={() => setIsModalOpen(false)}
+                    onSave={handleSave}
+                />
+            )}
+
+            {opportunityToDelete && (
+                <ConfirmDeleteModal
+                    title="Confirmar Exclusão"
+                    message={`Tem certeza que deseja excluir a oportunidade "<strong>${opportunityToDelete.title}</strong>"?`}
+                    onConfirm={handleDelete}
+                    onCancel={() => setOpportunityToDelete(null)}
+                />
             )}
         </div>
     );

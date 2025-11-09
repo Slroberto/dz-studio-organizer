@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, Rea
 import { ServiceOrder, User, AppNotification, ActivityLogEntry, OrderStatus, UserRole, ActivityActionType, NotificationColorType, Task, Comment, CommercialQuote, QuoteStatus, CatalogServiceItem, KanbanFilters, KanbanView, KanbanColumn, CustomFieldDefinition, ProofImage, ProofComment, Invoice, InvoiceStatus, FixedCost, VariableCost, RevenueEntry, ChatChannel, ChatMessage, ChannelType, ChatAttachment, Priority, ActionableIntent, Opportunity, OpportunityStatus, FileAttachment, SearchSource } from '../types';
 import { DEFAULT_KANBAN_COLUMNS, DEFAULT_CUSTOM_FIELDS } from '../constants';
 import { MOCK_USERS, MOCK_ORDERS, MOCK_ACTIVITY_LOG, MOCK_QUOTES, MOCK_CATALOG_SERVICES, MOCK_FIXED_COSTS, MOCK_VARIABLE_COSTS, MOCK_REVENUE_ENTRIES, MOCK_CHAT_CHANNELS, MOCK_CHAT_MESSAGES, MOCK_OPPORTUNITIES } from '../mockData'; // Import mock data
-import { getBotResponse, analyzeMessageForIntent, analyzeOpportunityWithAI, generateProposalDraft } from '../services/geminiService';
+import { getBotResponse, analyzeMessageForIntent, analyzeOpportunityWithAI, generateProposalDraft, analyzeClientProfileWithAI } from '../services/geminiService';
 import { uploadFile } from '../api/drive';
 
 interface TypingIndicator {
@@ -62,6 +62,8 @@ interface AppContextType {
   // AI analysis for Opportunities
   analyzingOpportunityId: string | null;
   analyzeOpportunity: (opportunityId: string) => Promise<void>;
+  analyzingProfileId: string | null;
+  analyzeClientProfile: (opportunityId: string) => Promise<void>;
   isGeneratingProposalId: string | null;
   generateProposalForOpportunity: (opportunityId: string) => Promise<Partial<CommercialQuote> | null>;
 
@@ -172,6 +174,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [searchSources, setSearchSources] = useState<SearchSource[]>([]);
   const [isSearchingOpportunities, setIsSearchingOpportunities] = useState(false);
   const [analyzingOpportunityId, setAnalyzingOpportunityId] = useState<string | null>(null);
+  const [analyzingProfileId, setAnalyzingProfileId] = useState<string | null>(null);
   const [isGeneratingProposalId, setIsGeneratingProposalId] = useState<string | null>(null);
 
 
@@ -1403,94 +1406,78 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 return;
             }
             
-            console.log("[MOCK] Calling backend to find jobs with sources:", enabledSources);
+            // --- MOCK BACKEND CALL ---
+            console.log("[MOCK] Simulating backend call to find jobs with sources:", enabledSources);
             await new Promise(resolve => setTimeout(resolve, 2500)); 
-
-            const mockApiResponse: Omit<Opportunity, 'id'>[] = [
+            const newOpportunitiesFromApi: Omit<Opportunity, 'id'>[] = [
                 {
-                    title: `Fotografia Still Life - ${enabledSources[0]?.name || 'Fonte'}`,
+                    title: `Fotografia Still Life - (Busca Real)`,
                     clientOrSource: enabledSources[0]?.name || 'Workana',
-                    budget: 1800,
-                    status: OpportunityStatus.Prospecting,
-                    description: 'Busca por fotógrafo para ensaio de produtos de beleza. Necessário experiência com iluminação de estúdio.',
+                    budget: 1800, status: OpportunityStatus.Prospecting,
+                    description: 'Busca por fotógrafo para ensaio de produtos de beleza. Necessário experiência com iluminação de estúdio. Encontrado pela busca automática.',
                     imageUrl: `https://picsum.photos/seed/${Date.now() + 1}/400/200`,
                     link: `https://example.com/job/${Date.now() + 1}`
                 },
                 {
                     title: 'Tratamento de 200 imagens para E-commerce de Moda', 
-                    clientOrSource: 'Workana',
-                    budget: 1200,
-                    status: OpportunityStatus.Prospecting,
-                    description: 'Duplicate job to test prevention logic.',
-                    imageUrl: `https://picsum.photos/seed/fashion/400/200`,
-                    link: 'https://www.workana.com/job/example-1' 
+                    clientOrSource: 'Workana', budget: 1200, status: OpportunityStatus.Prospecting,
+                    description: 'Este é um item duplicado para testar a lógica de prevenção.',
+                    imageUrl: `https://picsum.photos/seed/fashion/400/200`, link: 'https://www.workana.com/job/example-1' 
                 },
-                {
-                    title: `Edição de Vídeo para Reels - ${enabledSources[1]?.name || 'Outra Fonte'}`,
-                    clientOrSource: enabledSources[1]?.name || '99Freelas',
-                    budget: 950,
-                    status: OpportunityStatus.Prospecting,
-                    description: 'Edição de 10 vídeos curtos para Instagram Reels, com legendas e trilha sonora.',
-                    imageUrl: `https://picsum.photos/seed/${Date.now() + 2}/400/200`,
-                    link: `https://example.com/job/${Date.now() + 2}`
-                }
             ];
             
             let addedCount = 0;
             let duplicateCount = 0;
+            const opportunitiesToProcess: Omit<Opportunity, 'id'>[] = [];
             
-            const processNewOpportunities = async () => {
-                const opportunitiesToProcess: Omit<Opportunity, 'id'>[] = [];
-                
-                for (const opp of mockApiResponse) {
-                    const isDuplicate = opportunities.some(existingOpp => 
-                        (opp.link && existingOpp.link && existingOpp.link === opp.link) ||
-                        (existingOpp.title.toLowerCase() === opp.title.toLowerCase() && existingOpp.clientOrSource.toLowerCase() === opp.clientOrSource.toLowerCase())
-                    );
-                    if (!isDuplicate) {
-                        opportunitiesToProcess.push(opp);
-                    } else {
-                        duplicateCount++;
-                    }
-                }
-
-                const analyzedOpportunities = await Promise.all(
-                    opportunitiesToProcess.map(async (opp) => {
-                        try {
-                            const analysis = await analyzeOpportunityWithAI(opp);
-                            return { ...opp, aiAnalysis: analysis || undefined };
-                        } catch (error) {
-                            console.error("AI Analysis failed during search for opportunity:", opp.title, error);
-                            return opp;
-                        }
-                    })
+            newOpportunitiesFromApi.forEach(opp => {
+                const isDuplicate = opportunities.some(existingOpp => 
+                    (opp.link && existingOpp.link && existingOpp.link === opp.link) ||
+                    (existingOpp.title.toLowerCase() === opp.title.toLowerCase() && existingOpp.clientOrSource.toLowerCase() === opp.clientOrSource.toLowerCase())
                 );
-
-                if (analyzedOpportunities.length > 0) {
-                    const newOpportunitiesWithIds: Opportunity[] = analyzedOpportunities.map((opp, index) => ({
-                        id: `opp-${Date.now()}-${index}`,
-                        ...opp
-                    }));
-                    setOpportunities(prev => [...newOpportunitiesWithIds, ...prev]);
-                    addedCount = newOpportunitiesWithIds.length;
+                if (!isDuplicate) {
+                    opportunitiesToProcess.push(opp);
+                } else {
+                    duplicateCount++;
                 }
-            };
+            });
 
-            await processNewOpportunities();
-            
-            if (addedCount > 0) {
-                addNotification({ 
-                    message: `${addedCount} nova(s) oportunidade(s) analisada(s) e adicionada(s)!`,
-                    details: duplicateCount > 0 ? `${duplicateCount} duplicata(s) foram ignoradas.` : undefined,
-                    type: NotificationColorType.Success 
-                });
-            } else {
-                 addNotification({ 
-                    message: "Nenhuma nova oportunidade encontrada.",
-                    details: "Sua lista já está atualizada.",
-                    type: NotificationColorType.Success
-                });
+            const analyzedOpportunities = await Promise.all(
+                opportunitiesToProcess.map(async (opp) => {
+                    try {
+                        const [analysis, profileAnalysis] = await Promise.all([
+                            analyzeOpportunityWithAI(opp),
+                            analyzeClientProfileWithAI(opp)
+                        ]);
+                        return { 
+                            ...opp, 
+                            aiAnalysis: analysis || undefined,
+                            clientProfileAnalysis: profileAnalysis || undefined
+                        };
+                    } catch (error) {
+                        console.error("AI Analysis failed for opportunity:", opp.title, error);
+                        return opp;
+                    }
+                })
+            );
+
+            if (analyzedOpportunities.length > 0) {
+                const newOpportunitiesWithIds: Opportunity[] = analyzedOpportunities.map((opp, index) => ({
+                    id: `opp-${Date.now()}-${index}`,
+                    ...opp
+                }));
+                setOpportunities(prev => [...newOpportunitiesWithIds, ...prev]);
+                addedCount = newOpportunitiesWithIds.length;
             }
+            
+            const message = addedCount > 0 
+                ? `${addedCount} nova(s) oportunidade(s) analisada(s) e adicionada(s)!`
+                : "Nenhuma nova oportunidade encontrada.";
+            const details = duplicateCount > 0 
+                ? `${duplicateCount} duplicata(s) foram ignoradas.` 
+                : addedCount === 0 ? "Sua lista já está atualizada." : undefined;
+
+            addNotification({ message, details, type: NotificationColorType.Success });
 
         } catch (error) {
             console.error("Error finding new opportunities:", error);
@@ -1526,6 +1513,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             });
         } finally {
             setAnalyzingOpportunityId(null);
+        }
+    }, [opportunities, addNotification]);
+    
+    const analyzeClientProfile = useCallback(async (opportunityId: string) => {
+        const opportunity = opportunities.find(o => o.id === opportunityId);
+        if (!opportunity || opportunity.clientProfileAnalysis) return;
+
+        setAnalyzingProfileId(opportunityId);
+        try {
+            const analysis = await analyzeClientProfileWithAI(opportunity);
+            if (analysis) {
+                const updatedOpportunity = { ...opportunity, clientProfileAnalysis: analysis };
+                setOpportunities(prev => prev.map(o => o.id === opportunityId ? updatedOpportunity : o));
+            } else {
+                 addNotification({ message: 'Falha na Análise de Perfil', type: NotificationColorType.Alert });
+            }
+        } catch (error) {
+            console.error("Error in analyzeClientProfile:", error);
+            addNotification({ message: 'Erro na Análise de Perfil', type: NotificationColorType.Alert });
+        } finally {
+            setAnalyzingProfileId(null);
         }
     }, [opportunities, addNotification]);
 
@@ -1576,6 +1584,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     searchSources, addSearchSource, updateSearchSource, deleteSearchSource,
     isSearchingOpportunities, findNewOpportunities,
     analyzingOpportunityId, analyzeOpportunity,
+    analyzingProfileId, analyzeClientProfile,
     isGeneratingProposalId, generateProposalForOpportunity,
     login, logout, setCurrentPage, addOrder, updateOrder, deleteOrder,
     handleStatusChange, addNotification, removeNotification,

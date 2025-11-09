@@ -254,6 +254,11 @@ export interface Opportunity {
     complexity: 'Baixa' | 'Média' | 'Alta';
     budgetAnalysis: string;
   };
+  clientProfileAnalysis?: {
+    tone: string;
+    clarity: string;
+    redFlags: string[];
+  };
 }
 
 

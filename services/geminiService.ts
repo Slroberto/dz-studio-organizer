@@ -1,9 +1,12 @@
 import { ServiceOrder, OrderStatus, DailySummaryData, CommercialQuote, KanbanColumn, ActionableIntent, Opportunity, CatalogServiceItem } from '../types';
 import { GoogleGenAI, FunctionDeclaration, Type } from '@google/genai';
 
+// Safely access the API key from environment variables, providing a fallback for browser environments
+// where `process` is not defined. This prevents the app from crashing.
+const apiKey = typeof process !== 'undefined' && process.env.API_KEY ? process.env.API_KEY : '';
+
 // Initialize the Gemini client.
-// The API key is assumed to be available in process.env.API_KEY as per the guidelines.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey });
 
 
 export const generateFinancialInsight = async (kpi: { totalValue: number, deliveredValue: number, openValue: number, overdueCount: number }): Promise<string> => {
@@ -257,6 +260,55 @@ export const analyzeOpportunityWithAI = async (opportunity: Pick<Opportunity, 't
         return null;
     }
 };
+
+export const analyzeClientProfileWithAI = async (opportunity: Pick<Opportunity, 'title' | 'description' | 'clientOrSource'>): Promise<Opportunity['clientProfileAnalysis'] | null> => {
+    try {
+        const prompt = `
+          Você é um freelancer experiente analisando uma nova oportunidade de trabalho. Sua tarefa é avaliar o perfil do cliente com base na descrição da vaga para identificar possíveis problemas.
+          
+          Descrição da Vaga:
+          - Título: ${opportunity.title}
+          - Fonte: ${opportunity.clientOrSource}
+          - Detalhes: ${opportunity.description || 'Nenhuma descrição fornecida.'}
+
+          Analise o texto e retorne um objeto JSON com a seguinte estrutura:
+          - tone: Descreva o tom da comunicação do cliente em poucas palavras (ex: 'Amigável e claro', 'Urgente e direto', 'Vago e confuso').
+          - clarity: Avalie a clareza do briefing (ex: 'Bem definido', 'Razoavelmente claro', 'Escopo aberto').
+          - redFlags: Um array de strings com possíveis "sinais de alerta" que você identificar. Se não houver, retorne um array vazio. Exemplos: 'Orçamento muito baixo para o escopo', 'Expectativas irrealistas', 'Múltiplos decisores', 'Falta de informações cruciais'.
+        `;
+        
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        tone: { type: Type.STRING, description: 'O tom da comunicação do cliente.' },
+                        clarity: { type: Type.STRING, description: 'A clareza do briefing.' },
+                        redFlags: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Uma lista de possíveis sinais de alerta.' },
+                    },
+                    required: ["tone", "clarity", "redFlags"]
+                },
+            },
+        });
+
+        const jsonText = response.text.trim();
+        const analysisResult = JSON.parse(jsonText);
+
+        if (analysisResult && analysisResult.tone && analysisResult.clarity && Array.isArray(analysisResult.redFlags)) {
+            return analysisResult as Opportunity['clientProfileAnalysis'];
+        }
+        console.warn("Incomplete client profile analysis from Gemini:", analysisResult);
+        return null;
+
+    } catch (error) {
+        console.error("Error analyzing client profile with Gemini:", error);
+        return null;
+    }
+};
+
 
 export const generateProposalDraft = async (
   opportunity: Opportunity,

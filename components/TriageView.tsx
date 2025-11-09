@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 // FIX: Removed incorrect import of 'Partial'. It is a built-in TypeScript utility type.
 import { Opportunity, OpportunityStatus, CommercialQuote } from '../types';
-import { Briefcase, DollarSign, Calendar, Link as LinkIcon, XCircle, Clock, CheckCircle, Lightbulb, Bot, Loader, FileSignature } from 'lucide-react';
+import { Briefcase, DollarSign, Calendar, Link as LinkIcon, XCircle, Clock, CheckCircle, Lightbulb, Bot, Loader, FileSignature, UserCheck } from 'lucide-react';
 import { useAppContext } from './AppContext';
 
 interface TriageViewProps {
@@ -26,7 +26,7 @@ const ActionButton: React.FC<{
 );
 
 export const TriageView: React.FC<TriageViewProps> = ({ opportunities, onUpdateStatus, onOpenQuoteEditor }) => {
-    const { analyzeOpportunity, analyzingOpportunityId, generateProposalForOpportunity, isGeneratingProposalId } = useAppContext();
+    const { analyzeOpportunity, analyzingOpportunityId, generateProposalForOpportunity, isGeneratingProposalId, analyzeClientProfile, analyzingProfileId } = useAppContext();
     const [totalCount, setTotalCount] = useState(opportunities.length);
     const [animationClass, setAnimationClass] = useState('animate-fadeIn');
 
@@ -48,6 +48,7 @@ export const TriageView: React.FC<TriageViewProps> = ({ opportunities, onUpdateS
     const currentIndex = totalCount - opportunities.length;
     const isAnalyzing = analyzingOpportunityId === currentOpportunity?.id;
     const isGenerating = isGeneratingProposalId === currentOpportunity?.id;
+    const isAnalyzingProfile = analyzingProfileId === currentOpportunity?.id;
 
     const handleGenerateDraft = async () => {
         if (!currentOpportunity) return;
@@ -102,23 +103,52 @@ export const TriageView: React.FC<TriageViewProps> = ({ opportunities, onUpdateS
                         {currentOpportunity.link && <div className="flex items-center gap-3"><LinkIcon size={16} className="text-granite-gray-light"/> <a href={currentOpportunity.link} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate">Ver vaga original</a></div>}
                     </div>
                     
-                    {currentOpportunity.aiAnalysis ? (
+                    {currentOpportunity.aiAnalysis && (
                         <div className="mt-6 p-4 bg-blue-900/20 border-l-4 border-blue-500 rounded-r-lg space-y-2">
-                            <h4 className="font-bold text-blue-300 flex items-center gap-2"><Bot size={16}/> Análise da IA</h4>
+                            <h4 className="font-bold text-blue-300 flex items-center gap-2"><Bot size={16}/> Análise da Oportunidade</h4>
                             <p className="text-sm text-gray-300"><strong>Resumo:</strong> {currentOpportunity.aiAnalysis.summary}</p>
                             <p className="text-sm text-gray-300"><strong>Complexidade:</strong> {currentOpportunity.aiAnalysis.complexity}</p>
                             <p className="text-sm text-gray-300"><strong>Orçamento:</strong> {currentOpportunity.aiAnalysis.budgetAnalysis}</p>
                         </div>
-                    ) : (
-                        <button
+                    )}
+
+                    {currentOpportunity.clientProfileAnalysis && (
+                         <div className="mt-2 p-4 bg-purple-900/20 border-l-4 border-purple-500 rounded-r-lg space-y-2">
+                            <h4 className="font-bold text-purple-300 flex items-center gap-2"><UserCheck size={16}/> Análise de Perfil</h4>
+                            <p className="text-sm text-gray-300"><strong>Tom:</strong> {currentOpportunity.clientProfileAnalysis.tone}</p>
+                            <p className="text-sm text-gray-300"><strong>Clareza:</strong> {currentOpportunity.clientProfileAnalysis.clarity}</p>
+                            {currentOpportunity.clientProfileAnalysis.redFlags.length > 0 && (
+                                <div>
+                                    <strong className="text-sm text-gray-300">Sinais de Alerta:</strong>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                        {currentOpportunity.clientProfileAnalysis.redFlags.map((flag, i) => (
+                                            <span key={i} className="text-xs font-semibold bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full">{flag}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                         <button
                             onClick={() => analyzeOpportunity(currentOpportunity.id)}
-                            disabled={isAnalyzing}
-                            className="w-full mt-6 flex items-center justify-center gap-2 px-4 py-3 bg-blue-500/80 text-white font-bold rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-wait transition-all"
+                            disabled={isAnalyzing || !!currentOpportunity.aiAnalysis}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-500/80 text-white font-bold rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                             {isAnalyzing ? <Loader size={20} className="animate-spin" /> : <Bot size={20} />}
-                            {isAnalyzing ? 'Analisando...' : 'Analisar com IA'}
+                            {isAnalyzing ? 'Analisando...' : 'Analisar Vaga'}
                         </button>
-                    )}
+                        <button
+                            onClick={() => analyzeClientProfile(currentOpportunity.id)}
+                            disabled={isAnalyzingProfile || !!currentOpportunity.clientProfileAnalysis}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-500/80 text-white font-bold rounded-lg hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            {isAnalyzingProfile ? <Loader size={20} className="animate-spin" /> : <UserCheck size={20} />}
+                            {isAnalyzingProfile ? 'Analisando...' : 'Analisar Perfil'}
+                        </button>
+                    </div>
+
                     <button 
                         onClick={handleGenerateDraft}
                         disabled={isGenerating}
