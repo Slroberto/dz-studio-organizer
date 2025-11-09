@@ -16,45 +16,31 @@ interface ServiceOrderCardProps {
   onDragEnd: () => void;
 }
 
-const DeadlineIndicator = ({ date, status }: { date?: string, status: OrderStatus }) => {
-  if (!date || status === 'Entregue') {
-    return null;
-  }
-
-  const getDeadlineInfo = () => {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-
-    const deadline = new Date(date);
-    deadline.setHours(0, 0, 0, 0);
-
-    const diffTime = deadline.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    let className = 'text-granite-gray';
-    if (diffDays < 0) {
-      className = 'text-red-500 font-bold';
-    } else if (diffDays <= 2) {
-      className = 'text-cadmium-yellow font-bold';
+const PrazoIndicator = ({ dateString }: { dateString?: string | number | boolean }) => {
+    if (typeof dateString !== 'string' || !dateString) {
+        return null;
     }
 
-    const formattedDate = new Date(date).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
+    const prazoDate = new Date(dateString);
+    if (isNaN(prazoDate.getTime())) {
+        return null;
+    }
+     // Adjust for timezone issues by setting time to midday
+    prazoDate.setHours(12, 0, 0, 0);
+
+    const formattedDate = prazoDate.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
     });
 
-    return { className, formattedDate };
-  };
-
-  const { className, formattedDate } = getDeadlineInfo();
-
-  return (
-    <div className={`flex items-center text-xs ${className}`}>
-      <Calendar size={14} className="mr-2 flex-shrink-0" />
-      <span>{formattedDate}</span>
-    </div>
-  );
+    return (
+        <div className={`flex items-center text-xs font-bold border border-red-500 text-red-400 rounded px-2 py-0.5`}>
+            <Calendar size={14} className="mr-1.5 flex-shrink-0" />
+            <span>{formattedDate}</span>
+        </div>
+    );
 };
+
 
 const PriorityIndicator: React.FC<{ priority?: Priority }> = ({ priority }) => {
     if (!priority) return null;
@@ -133,6 +119,8 @@ const CustomFieldsDisplay: React.FC<{ order: ServiceOrder }> = ({ order }) => {
     const fieldsToDisplay = customFieldDefinitions
         .filter(def => {
             const value = order.customFields?.[def.id];
+            // Don't show the 'Prazo' field here as it has its own indicator
+            if (def.id === 'cf-3') return false;
             if (value === undefined || value === null) return false;
             // Don't show empty text/number fields or false booleans to reduce clutter
             if (def.type !== 'boolean' && (value === '' || value === 0)) return false;
@@ -272,7 +260,7 @@ export const ServiceOrderCard: React.FC<ServiceOrderCardProps> = ({ order, onDra
       <ProgressBar progress={order.progress} />
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-y-2 text-xs text-granite-gray-light">
-         <DeadlineIndicator date={order.expectedDeliveryDate} status={order.status} />
+         <PrazoIndicator dateString={order.customFields?.['cf-3']} />
          <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
             {order.notes && (
                  <div className="relative" onMouseEnter={() => setIsNoteTooltipVisible(true)} onMouseLeave={() => setIsNoteTooltipVisible(false)}>

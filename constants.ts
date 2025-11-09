@@ -66,6 +66,11 @@ export const DEFAULT_CUSTOM_FIELDS: CustomFieldDefinition[] = [
     id: 'cf-2',
     name: 'Figurino Recebido?',
     type: 'boolean'
+  },
+  {
+    id: 'cf-3',
+    name: 'Prazo',
+    type: 'date'
   }
 ];
 

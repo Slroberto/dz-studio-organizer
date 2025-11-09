@@ -249,16 +249,8 @@ export interface Opportunity {
   lossReason?: 'Preço' | 'Prazo' | 'Concorrência' | 'Escopo' | 'Outro';
   lossNotes?: string;
   imageUrl?: string;
-  aiAnalysis?: {
-    summary: string;
-    complexity: 'Baixa' | 'Média' | 'Alta';
-    budgetAnalysis: string;
-  };
-  clientProfileAnalysis?: {
-    tone: string;
-    clarity: string;
-    redFlags: string[];
-  };
+  aiAnalysis?: string;
+  clientProfileAnalysis?: string;
 }
 
 

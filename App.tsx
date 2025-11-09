@@ -16,6 +16,7 @@ import { ClientPortalPage } from './components/ClientPortalPage';
 import { OrderDetailPanel } from './components/OrderDetailPanel';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 import { QuoteEditorModal } from './components/QuoteEditorModal';
+import { ProposalDraftModal } from './components/ProposalDraftModal';
 
 // Lazy load page components for better performance
 const DashboardPage = lazy(() => import('./components/DashboardPage').then(module => ({ default: module.DashboardPage })));
@@ -50,7 +51,9 @@ export default function App() {
     isDataLoading,
     deleteOrder,
     addQuote,
-    updateQuote
+    updateQuote,
+    proposalDraft,
+    clearProposalDraft,
   } = useAppContext();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -278,6 +281,14 @@ export default function App() {
             quote={quoteEditorData.quote}
             onClose={handleCloseQuoteEditor}
             onSave={handleSaveQuote}
+        />
+      )}
+
+      {proposalDraft && (
+        <ProposalDraftModal
+            title={proposalDraft.opportunityTitle}
+            draft={proposalDraft.draft}
+            onClose={clearProposalDraft}
         />
       )}
     </div>

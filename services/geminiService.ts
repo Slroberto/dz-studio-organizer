@@ -206,180 +206,81 @@ export const analyzeMessageForIntent = async (message: string, context: BotConte
     }
 };
 
-export const analyzeOpportunityWithAI = async (opportunity: Pick<Opportunity, 'title' | 'description' | 'budget'>): Promise<Opportunity['aiAnalysis'] | null> => {
+export const analyzeOpportunityWithAI = async (opportunity: Opportunity): Promise<string> => {
     try {
+        const systemInstruction = "Você é um analista de projetos sênior especializado em avaliar oportunidades de trabalho para estúdios de fotografia e pós-produção. Sua análise deve ser concisa, direta e em formato markdown.";
         const prompt = `
-          Analise a seguinte oportunidade de trabalho para um estúdio de fotografia e pós-produção.
-          Título: ${opportunity.title}
-          Descrição: ${opportunity.description || 'Nenhuma descrição fornecida.'}
-          Orçamento: ${opportunity.budget ? `R$ ${opportunity.budget}` : 'Não informado'}
+Analise a seguinte oportunidade de trabalho e forneça um resumo dos pontos-chave.
 
-          Com base nessas informações, forneça uma análise concisa no seguinte formato JSON:
-          - summary: Um resumo em uma frase do que o trabalho pede.
-          - complexity: A complexidade estimada do trabalho ('Baixa', 'Média', 'Alta').
-          - budgetAnalysis: Uma breve análise sobre o orçamento (se está bom, baixo ou se é difícil dizer sem mais detalhes).
-        `;
+**Título:** ${opportunity.title}
+**Fonte/Cliente:** ${opportunity.clientOrSource}
+**Orçamento:** ${opportunity.budget ? opportunity.budget.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Não informado'}
+**Descrição:** ${opportunity.description}
 
+Sua análise deve incluir:
+- **Resumo Rápido:** Uma frase resumindo o trabalho.
+- **Prós:** Pontos positivos (orçamento, escopo, tipo de trabalho).
+- **Contras/Riscos:** Pontos de atenção ou possíveis problemas.
+- **Habilidades Chave:** Liste as 2-3 habilidades mais importantes para ter sucesso.
+`;
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        summary: {
-                            type: Type.STRING,
-                            description: 'Resumo em uma frase do que o trabalho pede.',
-                        },
-                        complexity: {
-                            type: Type.STRING,
-                            description: "A complexidade estimada do trabalho: 'Baixa', 'Média' ou 'Alta'.",
-                        },
-                        budgetAnalysis: {
-                            type: Type.STRING,
-                            description: 'Uma breve análise sobre o orçamento.',
-                        },
-                    },
-                    required: ["summary", "complexity", "budgetAnalysis"]
-                },
-            },
+            config: { systemInstruction },
         });
-        
-        const jsonText = response.text.trim();
-        const analysisResult = JSON.parse(jsonText);
-
-        // Basic validation
-        if (analysisResult && analysisResult.summary && analysisResult.complexity && analysisResult.budgetAnalysis) {
-             return analysisResult as Opportunity['aiAnalysis'];
-        }
-        console.warn("Incomplete analysis from Gemini:", analysisResult);
-        return null;
+        return response.text;
     } catch (error) {
-        console.error("Error analyzing opportunity with Gemini:", error);
-        return null;
+        console.error("Error analyzing opportunity with AI:", error);
+        return "Erro ao analisar a vaga. A IA não está disponível no momento.";
     }
 };
 
-export const analyzeClientProfileWithAI = async (opportunity: Pick<Opportunity, 'title' | 'description' | 'clientOrSource'>): Promise<Opportunity['clientProfileAnalysis'] | null> => {
+export const analyzeClientProfileWithAI = async (opportunity: Opportunity): Promise<string> => {
     try {
+        const systemInstruction = "Você é um consultor de negócios que analisa perfis de clientes em plataformas de freelancers. Sua análise deve ser concisa e útil, em formato markdown.";
         const prompt = `
-          Você é um freelancer experiente analisando uma nova oportunidade de trabalho. Sua tarefa é avaliar o perfil do cliente com base na descrição da vaga para identificar possíveis problemas.
-          
-          Descrição da Vaga:
-          - Título: ${opportunity.title}
-          - Fonte: ${opportunity.clientOrSource}
-          - Detalhes: ${opportunity.description || 'Nenhuma descrição fornecida.'}
+Analise o perfil do cliente/fonte: **${opportunity.clientOrSource}**.
 
-          Analise o texto e retorne um objeto JSON com a seguinte estrutura:
-          - tone: Descreva o tom da comunicação do cliente em poucas palavras (ex: 'Amigável e claro', 'Urgente e direto', 'Vago e confuso').
-          - clarity: Avalie a clareza do briefing (ex: 'Bem definido', 'Razoavelmente claro', 'Escopo aberto').
-          - redFlags: Um array de strings com possíveis "sinais de alerta" que você identificar. Se não houver, retorne um array vazio. Exemplos: 'Orçamento muito baixo para o escopo', 'Expectativas irrealistas', 'Múltiplos decisores', 'Falta de informações cruciais'.
-        `;
-        
+Considerando a fonte, descreva:
+- **Perfil Típico:** Como costumam ser os clientes desta plataforma/fonte (ex: agências, startups, clientes finais)?
+- **Foco da Negociação:** O que é mais importante para eles (preço, prazo, qualidade)?
+- **Dica de Abordagem:** Uma dica rápida sobre como se comunicar ou apresentar a proposta para este perfil.
+`;
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        tone: { type: Type.STRING, description: 'O tom da comunicação do cliente.' },
-                        clarity: { type: Type.STRING, description: 'A clareza do briefing.' },
-                        redFlags: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Uma lista de possíveis sinais de alerta.' },
-                    },
-                    required: ["tone", "clarity", "redFlags"]
-                },
-            },
+            config: { systemInstruction },
         });
-
-        const jsonText = response.text.trim();
-        const analysisResult = JSON.parse(jsonText);
-
-        if (analysisResult && analysisResult.tone && analysisResult.clarity && Array.isArray(analysisResult.redFlags)) {
-            return analysisResult as Opportunity['clientProfileAnalysis'];
-        }
-        console.warn("Incomplete client profile analysis from Gemini:", analysisResult);
-        return null;
-
+        return response.text;
     } catch (error) {
-        console.error("Error analyzing client profile with Gemini:", error);
-        return null;
+        console.error("Error analyzing client profile with AI:", error);
+        return "Erro ao analisar o perfil. A IA não está disponível no momento.";
     }
 };
 
-
-export const generateProposalDraft = async (
-  opportunity: Opportunity,
-  services: CatalogServiceItem[]
-): Promise<Partial<CommercialQuote> | null> => {
+export const generateProposalDraft = async (opportunity: Opportunity): Promise<string> => {
     try {
-        const servicesString = services.map(s => `- ${s.title}: ${s.description} (Preço: R$${s.price})`).join('\n');
-
+        const systemInstruction = "Você é um redator de propostas comerciais (copywriter) para um estúdio de fotografia. Você escreve de forma amigável, profissional e persuasiva. A proposta deve ser em markdown.";
         const prompt = `
-            Você é um assistente de vendas para um estúdio de fotografia. Sua tarefa é criar um rascunho de orçamento com base em uma oportunidade de trabalho e um catálogo de serviços.
-            
-            Oportunidade:
-            - Título: ${opportunity.title}
-            - Descrição: ${opportunity.description || 'N/A'}
-            - Orçamento do Cliente (se informado): ${opportunity.budget ? `R$ ${opportunity.budget}` : 'N/A'}
+Crie um rascunho de proposta para a seguinte oportunidade:
 
-            Catálogo de Serviços Disponíveis:
-            ${servicesString}
+**Título:** ${opportunity.title}
+**Descrição:** ${opportunity.description}
 
-            Com base nas informações acima, selecione os serviços mais relevantes do catálogo, ajuste as quantidades se necessário, e crie um rascunho de orçamento. Seja realista. Se a descrição pedir algo que não está no catálogo, crie um novo item de serviço com um preço estimado razoável.
-
-            Retorne um objeto JSON com a seguinte estrutura:
-            - client: string (o cliente ou fonte da oportunidade).
-            - items: array de objetos, onde cada objeto tem:
-                - description: string
-                - quantity: number
-                - unitPrice: number
-            - terms: string (sugira termos de pagamento padrão, como '50% de entrada, 50% na entrega').
-        `;
-        
+A proposta deve:
+1. Começar com uma saudação amigável.
+2. Mostrar que você entendeu a necessidade do cliente.
+3. Destacar brevemente por que o DZ Studio é a escolha certa.
+4. Concluir com uma chamada para ação (call to action) para discutir os detalhes.
+`;
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        client: { type: Type.STRING },
-                        items: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    description: { type: Type.STRING },
-                                    quantity: { type: Type.NUMBER },
-                                    unitPrice: { type: Type.NUMBER },
-                                },
-                                required: ["description", "quantity", "unitPrice"]
-                            }
-                        },
-                        terms: { type: Type.STRING }
-                    },
-                    required: ["client", "items", "terms"]
-                },
-            },
+            config: { systemInstruction },
         });
-
-        const jsonText = response.text.trim();
-        const draft = JSON.parse(jsonText);
-        
-        // Add IDs to items
-        const itemsWithIds = draft.items.map((item: any) => ({
-            ...item,
-            id: `item-${Date.now()}-${Math.random()}`
-        }));
-
-        return { ...draft, items: itemsWithIds };
-
+        return response.text;
     } catch (error) {
-        console.error("Error generating proposal draft with Gemini:", error);
-        return null;
+        console.error("Error generating proposal draft with AI:", error);
+        return "Erro ao gerar a proposta. A IA não está disponível no momento.";
     }
 };

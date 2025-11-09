@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from './AppContext';
-// FIX: Removed incorrect import of 'Partial'. It is a built-in TypeScript utility type.
 import { Opportunity, OpportunityStatus, CommercialQuote } from '../types';
 import { PlusCircle, Edit, Trash2, ArrowRightCircle, DollarSign, Calendar, Link as LinkIcon, Briefcase, X, Loader, Lightbulb, GanttChartSquare, View, Bot, FileSignature, UserCheck } from 'lucide-react';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
@@ -103,19 +102,7 @@ const OpportunityCard: React.FC<{
     onConvertToOS: () => void;
     onOpenQuoteEditor: (quote: Partial<CommercialQuote> | null) => void;
 }> = ({ opportunity, onEdit, onDelete, onConvertToOS, onOpenQuoteEditor }) => {
-    const { analyzeOpportunity, analyzingOpportunityId, generateProposalForOpportunity, isGeneratingProposalId, analyzeClientProfile, analyzingProfileId } = useAppContext();
-    const isAnalyzing = analyzingOpportunityId === opportunity.id;
-    const isGenerating = isGeneratingProposalId === opportunity.id;
-    const isAnalyzingProfile = analyzingProfileId === opportunity.id;
-
-    const handleGenerateDraft = async (e: React.MouseEvent) => {
-        e.stopPropagation();
-        const draft = await generateProposalForOpportunity(opportunity.id);
-        if (draft) {
-            onOpenQuoteEditor(draft);
-        }
-    };
-
+    const { analysisLoading, analyzeOpportunity, analyzeClientProfile, generateProposal } = useAppContext();
 
     return (
         <div className="relative group bg-coal-black rounded-lg border border-granite-gray/20 flex flex-col card-enter-animation mb-3 overflow-hidden">
@@ -138,67 +125,52 @@ const OpportunityCard: React.FC<{
                         {opportunity.link && <div className="flex items-center gap-2"><LinkIcon size={14} className="text-granite-gray-light"/> <a href={opportunity.link} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate">Ver vaga original</a></div>}
                     </div>
                 </div>
-                <div>
-                    {opportunity.aiAnalysis && (
-                        <div className="mt-4 p-3 bg-blue-900/20 border-l-4 border-blue-500 rounded-r-lg space-y-2">
-                            <h4 className="font-bold text-blue-300 flex items-center gap-2"><Bot size={16}/> Análise da Oportunidade</h4>
-                            <p className="text-sm text-gray-300"><strong>Resumo:</strong> {opportunity.aiAnalysis.summary}</p>
-                            <p className="text-sm text-gray-300"><strong>Complexidade:</strong> {opportunity.aiAnalysis.complexity}</p>
-                            <p className="text-sm text-gray-300"><strong>Orçamento:</strong> {opportunity.aiAnalysis.budgetAnalysis}</p>
-                        </div>
-                    )}
 
-                    {opportunity.clientProfileAnalysis && (
-                         <div className="mt-2 p-3 bg-purple-900/20 border-l-4 border-purple-500 rounded-r-lg space-y-2">
-                            <h4 className="font-bold text-purple-300 flex items-center gap-2"><UserCheck size={16}/> Análise de Perfil</h4>
-                            <p className="text-sm text-gray-300"><strong>Tom:</strong> {opportunity.clientProfileAnalysis.tone}</p>
-                            <p className="text-sm text-gray-300"><strong>Clareza:</strong> {opportunity.clientProfileAnalysis.clarity}</p>
-                            {opportunity.clientProfileAnalysis.redFlags.length > 0 && (
-                                <div>
-                                    <strong className="text-sm text-gray-300">Sinais de Alerta:</strong>
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                        {opportunity.clientProfileAnalysis.redFlags.map((flag, i) => (
-                                            <span key={i} className="text-xs font-semibold bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full">{flag}</span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                        {!opportunity.aiAnalysis && (
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); analyzeOpportunity(opportunity.id); }}
-                                disabled={isAnalyzing}
-                                className="w-full flex items-center justify-center gap-2 px-2 py-2 bg-blue-500/80 text-white font-bold rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-wait transition-all text-sm"
-                            >
-                                {isAnalyzing ? <Loader size={16} className="animate-spin" /> : <Bot size={16} />}
-                                {isAnalyzing ? 'Analisando...' : 'Analisar Vaga'}
-                            </button>
-                        )}
-                         {!opportunity.clientProfileAnalysis && (
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); analyzeClientProfile(opportunity.id); }}
-                                disabled={isAnalyzingProfile}
-                                className="w-full flex items-center justify-center gap-2 px-2 py-2 bg-purple-500/80 text-white font-bold rounded-lg hover:bg-purple-500 disabled:opacity-50 disabled:cursor-wait transition-all text-sm"
-                            >
-                                {isAnalyzingProfile ? <Loader size={16} className="animate-spin" /> : <UserCheck size={16} />}
-                                {isAnalyzingProfile ? 'Analisando...' : 'Analisar Perfil'}
-                            </button>
-                        )}
+                <div className="mt-2 space-y-2">
+                    {/* AI Buttons */}
+                    <div className="grid grid-cols-3 gap-2">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); analyzeOpportunity(opportunity.id); }}
+                            disabled={!!analysisLoading[opportunity.id]}
+                            className="flex items-center justify-center gap-2 px-2 py-1.5 bg-blue-500/10 text-blue-300 text-xs font-semibold rounded hover:bg-blue-500/20 disabled:opacity-50 disabled:cursor-wait"
+                        >
+                            {analysisLoading[opportunity.id] === 'opportunity' ? <Loader size={14} className="animate-spin" /> : <Bot size={14} />}
+                            Analisar Vaga
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); analyzeClientProfile(opportunity.id); }}
+                            disabled={!!analysisLoading[opportunity.id]}
+                            className="flex items-center justify-center gap-2 px-2 py-1.5 bg-purple-500/10 text-purple-300 text-xs font-semibold rounded hover:bg-purple-500/20 disabled:opacity-50 disabled:cursor-wait"
+                        >
+                            {analysisLoading[opportunity.id] === 'client' ? <Loader size={14} className="animate-spin" /> : <UserCheck size={14} />}
+                            Analisar Perfil
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); generateProposal(opportunity.id); }}
+                            disabled={!!analysisLoading[opportunity.id]}
+                            className="flex items-center justify-center gap-2 px-2 py-1.5 bg-green-500/10 text-green-300 text-xs font-semibold rounded hover:bg-green-500/20 disabled:opacity-50 disabled:cursor-wait"
+                        >
+                            {analysisLoading[opportunity.id] === 'proposal' ? <Loader size={14} className="animate-spin" /> : <FileSignature size={14} />}
+                            Gerar Rascunho
+                        </button>
                     </div>
 
+                    {/* AI Analysis Display */}
+                    {opportunity.aiAnalysis && (
+                        <div className="mt-3 p-3 bg-black/30 rounded-lg border border-blue-500/20 card-enter-animation">
+                            <h4 className="font-bold text-blue-300 flex items-center gap-2 mb-2"><Bot size={16} /> Análise da Vaga (IA)</h4>
+                            <div className="text-sm text-gray-300 whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: opportunity.aiAnalysis.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}></div>
+                        </div>
+                    )}
+                    {opportunity.clientProfileAnalysis && (
+                        <div className="mt-3 p-3 bg-black/30 rounded-lg border border-purple-500/20 card-enter-animation">
+                            <h4 className="font-bold text-purple-300 flex items-center gap-2 mb-2"><UserCheck size={16} /> Análise do Perfil (IA)</h4>
+                            <div className="text-sm text-gray-300 whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: opportunity.clientProfileAnalysis.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }}></div>
+                        </div>
+                    )}
+                </div>
 
-                    <button 
-                        onClick={handleGenerateDraft}
-                        disabled={isGenerating}
-                        className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-2 bg-green-600/80 text-white font-bold rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-wait transition-all"
-                    >
-                        {isGenerating ? <Loader size={18} className="animate-spin" /> : <FileSignature size={18} />}
-                        {isGenerating ? 'Gerando...' : 'Gerar Rascunho com IA'}
-                    </button>
-
+                <div>
                     {opportunity.status === OpportunityStatus.Won && (
                         <button onClick={onConvertToOS} className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-cadmium-yellow text-coal-black font-bold rounded-lg hover:brightness-110 transform active:scale-95 transition-all">
                             <ArrowRightCircle size={18} />
