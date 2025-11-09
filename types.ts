@@ -109,6 +109,7 @@ export interface ServiceOrder {
   notes?: string;
   files?: FileAttachment[];
   priority?: Priority;
+  assignedFreelancers?: string[]; // Array of Freelancer IDs
   _rowIndex?: number;
 }
 
@@ -364,4 +365,22 @@ export interface SearchSource {
   apiKey: string;
   keywords: string; // Comma-separated
   enabled: boolean;
+}
+
+// --- Freelancer Management Types ---
+export type FreelancerSpecialty = 'Retoque' | 'Edição de Vídeo' | 'Food Styling' | 'Produção' | 'Outro';
+export type RateType = 'hora' | 'dia' | 'projeto';
+export type AvailabilityStatus = 'Disponível' | 'Ocupado' | 'Férias';
+
+export interface Freelancer {
+  id: string;
+  name: string;
+  email: string;
+  picture?: string;
+  specialty: FreelancerSpecialty | string;
+  rateType: RateType;
+  rateValue: number;
+  availability: AvailabilityStatus;
+  portfolioLink?: string;
+  notes?: string;
 }

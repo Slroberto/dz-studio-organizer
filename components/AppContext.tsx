@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode, useMemo } from 'react';
-import { ServiceOrder, User, AppNotification, ActivityLogEntry, OrderStatus, UserRole, ActivityActionType, NotificationColorType, Task, Comment, CommercialQuote, QuoteStatus, CatalogServiceItem, KanbanFilters, KanbanView, KanbanColumn, CustomFieldDefinition, ProofImage, ProofComment, Invoice, InvoiceStatus, FixedCost, VariableCost, RevenueEntry, ChatChannel, ChatMessage, ChannelType, ChatAttachment, Priority, ActionableIntent, Opportunity, OpportunityStatus, FileAttachment, SearchSource } from '../types';
+import { ServiceOrder, User, AppNotification, ActivityLogEntry, OrderStatus, UserRole, ActivityActionType, NotificationColorType, Task, Comment, CommercialQuote, QuoteStatus, CatalogServiceItem, KanbanFilters, KanbanView, KanbanColumn, CustomFieldDefinition, ProofImage, ProofComment, Invoice, InvoiceStatus, FixedCost, VariableCost, RevenueEntry, ChatChannel, ChatMessage, ChannelType, ChatAttachment, Priority, ActionableIntent, Opportunity, OpportunityStatus, FileAttachment, SearchSource, Freelancer } from '../types';
 import { DEFAULT_KANBAN_COLUMNS, DEFAULT_CUSTOM_FIELDS } from '../constants';
-import { MOCK_USERS, MOCK_ORDERS, MOCK_ACTIVITY_LOG, MOCK_QUOTES, MOCK_CATALOG_SERVICES, MOCK_FIXED_COSTS, MOCK_VARIABLE_COSTS, MOCK_REVENUE_ENTRIES, MOCK_CHAT_CHANNELS, MOCK_CHAT_MESSAGES, MOCK_OPPORTUNITIES } from '../mockData'; // Import mock data
+import { MOCK_USERS, MOCK_ORDERS, MOCK_ACTIVITY_LOG, MOCK_QUOTES, MOCK_CATALOG_SERVICES, MOCK_FIXED_COSTS, MOCK_VARIABLE_COSTS, MOCK_REVENUE_ENTRIES, MOCK_CHAT_CHANNELS, MOCK_CHAT_MESSAGES, MOCK_OPPORTUNITIES, MOCK_FREELANCERS } from '../mockData'; // Import mock data
 import { getBotResponse, analyzeMessageForIntent, analyzeOpportunityWithAI, analyzeClientProfileWithAI, generateProposalDraft } from '../services/geminiService';
 import { uploadFile } from '../api/drive';
 
@@ -16,6 +16,7 @@ interface AppContextType {
   quotes: CommercialQuote[];
   opportunities: Opportunity[];
   users: User[];
+  freelancers: Freelancer[];
   catalogServices: CatalogServiceItem[];
   currentUser: User | null;
   activityLog: ActivityLogEntry[];
@@ -89,6 +90,10 @@ interface AppContextType {
   addUser: (user: Omit<User, 'id'>) => Promise<void>;
   updateUser: (user: User) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
+  // Freelancer Functions
+  addFreelancer: (freelancer: Omit<Freelancer, 'id'>) => Promise<void>;
+  updateFreelancer: (freelancer: Freelancer) => Promise<void>;
+  deleteFreelancer: (freelancerId: string) => Promise<void>;
   // New functions for tasks and comments
   addTask: (orderId: string, taskText: string) => Promise<void>;
   updateTask: (orderId: string, updatedTask: Task) => Promise<void>;
@@ -147,6 +152,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [quotes, setQuotes] = useState<CommercialQuote[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [users, setUsers] = useState<User[]>(MOCK_USERS); // Initialize with mock users for auth check
+  const [freelancers, setFreelancers] = useState<Freelancer[]>([]);
   const [catalogServices, setCatalogServices] = useState<CatalogServiceItem[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
@@ -281,6 +287,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setFixedCosts(MOCK_FIXED_COSTS);
             setVariableCosts(MOCK_VARIABLE_COSTS);
             setRevenueEntries(MOCK_REVENUE_ENTRIES);
+            setFreelancers(MOCK_FREELANCERS);
             
             // Load chat data from localStorage or initialize with mock data
             try {
@@ -351,6 +358,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setRevenueEntries([]);
     setChannels([]);
     setMessages([]);
+    setFreelancers([]);
     // Keep the list of users so we can log back in
   }, []);
   
@@ -780,6 +788,51 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           }, 500);
       });
   }, [users, addNotification]);
+
+  const addFreelancer = useCallback(async (freelancerData: Omit<Freelancer, 'id'>) => {
+    setIsDataLoading(true);
+    await new Promise<void>(resolve => {
+      setTimeout(() => {
+        const newFreelancer: Freelancer = {
+            ...freelancerData,
+            id: `fl-${Date.now()}`,
+            picture: freelancerData.picture || `https://i.pravatar.cc/150?u=${freelancerData.email}`
+        };
+        setFreelancers(prev => [...prev, newFreelancer]);
+        addNotification({ message: `Freelancer ${newFreelancer.name} adicionado.`, type: NotificationColorType.Success });
+        setIsDataLoading(false);
+        resolve();
+      }, 500);
+    });
+  }, [addNotification]);
+
+  const updateFreelancer = useCallback(async (updatedFreelancerData: Freelancer) => {
+    setIsDataLoading(true);
+    await new Promise<void>(resolve => {
+      setTimeout(() => {
+        setFreelancers(prev => prev.map(f => f.id === updatedFreelancerData.id ? updatedFreelancerData : f));
+        addNotification({ message: `Freelancer ${updatedFreelancerData.name} atualizado.`, type: NotificationColorType.Success });
+        setIsDataLoading(false);
+        resolve();
+      }, 500);
+    });
+  }, [addNotification]);
+
+  const deleteFreelancer = useCallback(async (freelancerId: string) => {
+      setIsDataLoading(true);
+      await new Promise<void>(resolve => {
+          setTimeout(() => {
+              const freelancerToDelete = freelancers.find(f => f.id === freelancerId);
+              if (freelancerToDelete) {
+                  setFreelancers(prev => prev.filter(f => f.id !== freelancerId));
+                  addNotification({ message: `Freelancer ${freelancerToDelete.name} excluído.`, type: NotificationColorType.Warning });
+              }
+              setIsDataLoading(false);
+              resolve();
+          }, 500);
+      });
+  }, [freelancers, addNotification]);
+
 
   const calculateQuoteValue = (quoteData: Omit<CommercialQuote, 'id' | 'value'>): number => {
     const subtotal = quoteData.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
@@ -1473,7 +1526,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
 
   const value: AppContextType = {
-    orders, quotes, opportunities, users, catalogServices, currentUser, activityLog, notifications, currentPage,
+    orders, quotes, opportunities, users, freelancers, catalogServices, currentUser, activityLog, notifications, currentPage,
     recentlyUpdatedOrderId, isSummaryLoading, filteredOrders,
     deliveredOrders, isInitializing, isDataLoading, authError,
     fixedCosts, variableCosts, revenueEntries,
@@ -1487,6 +1540,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     handleStatusChange, addNotification, removeNotification,
     updateKanbanFilters, saveKanbanView, applyKanbanView, deleteKanbanView, clearFilters, setIsStalledFilterActive,
     addUser, updateUser, deleteUser,
+    addFreelancer, updateFreelancer, deleteFreelancer,
     addTask, updateTask, deleteTask, addComment,
     addQuote, updateQuote, deleteQuote,
     addOpportunity, updateOpportunity, deleteOpportunity,

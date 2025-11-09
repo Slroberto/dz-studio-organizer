@@ -1,4 +1,4 @@
-import { ServiceOrder, User, ActivityLogEntry, OrderStatus, UserRole, ActivityActionType, CommercialQuote, QuoteStatus, QuoteItem, CatalogServiceItem, InvoiceStatus, FixedCost, VariableCost, RevenueEntry, ChatChannel, ChannelType, ChatMessage, Opportunity, OpportunityStatus } from './types';
+import { ServiceOrder, User, ActivityLogEntry, OrderStatus, UserRole, ActivityActionType, CommercialQuote, QuoteStatus, QuoteItem, CatalogServiceItem, InvoiceStatus, FixedCost, VariableCost, RevenueEntry, ChatChannel, ChannelType, ChatMessage, Opportunity, OpportunityStatus, Freelancer } from './types';
 
 // Helper to create dates relative to today, avoiding timezone issues by setting time to midday UTC.
 const getRelativeDate = (dayOffset: number): string => {
@@ -21,6 +21,24 @@ export const MOCK_USERS: User[] = [
 ];
 
 export const MOCK_USER: User = MOCK_USERS[0];
+
+export const MOCK_FREELANCERS: Freelancer[] = [
+    { 
+        id: 'fl-1', name: 'Bruno Marques', email: 'bruno@freela.com', specialty: 'Retoque', 
+        rateType: 'hora', rateValue: 120, availability: 'Disponível', 
+        portfolioLink: 'https://behance.net/bruno', picture: 'https://i.pravatar.cc/150?u=bruno'
+    },
+    { 
+        id: 'fl-2', name: 'Carla Vianna', email: 'carla@freela.com', specialty: 'Food Styling', 
+        rateType: 'dia', rateValue: 800, availability: 'Ocupado', 
+        notes: 'Especialista em sobremesas. Agendar com antecedência.', picture: 'https://i.pravatar.cc/150?u=carla'
+    },
+    { 
+        id: 'fl-3', name: 'Ricardo Alves', email: 'ricardo@freela.com', specialty: 'Edição de Vídeo', 
+        rateType: 'projeto', rateValue: 3500, availability: 'Disponível', 
+        portfolioLink: 'https://vimeo.com/ricardo', picture: 'https://i.pravatar.cc/150?u=ricardo'
+    },
+];
 
 export const MOCK_ORDERS: ServiceOrder[] = [
   {
@@ -80,7 +98,8 @@ export const MOCK_ORDERS: ServiceOrder[] = [
       { id: 'file-1', name: 'briefing_campanha.pdf', url: '#', size: 1205820, uploadStatus: 'completed' },
       { id: 'file-2', name: 'referencias_iluminacao.zip', url: '#', size: 15302000, uploadStatus: 'uploading', progress: 65 },
       { id: 'file-3', name: 'logo_vetor.ai', url: '#', size: 850340, uploadStatus: 'failed' },
-    ]
+    ],
+    assignedFreelancers: ['fl-1'],
   },
   {
     id: 'OS-005', client: 'Apple', orderNumber: 'OS-005', description: 'Fotos de novos iPhones para lançamento.', status: 'Cromia',
@@ -123,6 +142,7 @@ export const MOCK_ORDERS: ServiceOrder[] = [
         }
     ],
     files: [],
+    assignedFreelancers: ['fl-1', 'fl-3'],
   },
   {
     id: 'OS-007', client: 'Gucci', orderNumber: 'OS-007', description: 'Fotos de bolsas e sapatos de luxo.', status: 'Entregue',

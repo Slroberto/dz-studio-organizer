@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
-import { Settings, PlusCircle, Edit, Trash2, BookOpen, Save, Workflow, Type, Hash, Calendar, ToggleLeft, ListChecks, GripVertical, ChevronDown, Check, User as UserIcon, Kanban, History, Loader, Network } from 'lucide-react';
+import { Settings, PlusCircle, Edit, Trash2, BookOpen, Save, Workflow, Type, Hash, Calendar, ToggleLeft, ListChecks, GripVertical, ChevronDown, Check, User as UserIcon, Kanban, History, Loader, Network, Users as FreelancersIcon } from 'lucide-react';
 import { useAppContext } from './AppContext';
 // FIX: Import NotificationColorType to use enum members for type safety.
-import { User, UserRole, CatalogServiceItem, KanbanColumn, CustomFieldDefinition, CustomFieldType, NotificationColorType, SearchSource } from '../types';
+import { User, UserRole, CatalogServiceItem, KanbanColumn, CustomFieldDefinition, CustomFieldType, NotificationColorType, SearchSource, Freelancer, RateType, AvailabilityStatus } from '../types';
 import { UserFormModal } from './UserFormModal';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
 import { ServiceItemFormModal } from './ServiceItemFormModal';
 import { SearchSourceModal } from './SearchSourceModal';
+import { FreelancerFormModal } from './FreelancerFormModal';
 
 const ActivityLogPage = lazy(() => import('./ActivityLogPage').then(module => ({ default: module.ActivityLogPage })));
 
@@ -15,6 +16,12 @@ const roleColors: Record<UserRole, string> = {
     [UserRole.Admin]: 'bg-red-500/20 text-red-300 border-red-500/30',
     [UserRole.Assistant]: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
     [UserRole.Viewer]: 'bg-gray-500/20 text-gray-300 border-gray-500/30',
+};
+
+const availabilityColors: Record<AvailabilityStatus, string> = {
+    'Disponível': 'bg-green-500/20 text-green-300 border-green-500/30',
+    'Ocupado': 'bg-orange-500/20 text-orange-300 border-orange-500/30',
+    'Férias': 'bg-blue-500/20 text-blue-300 border-blue-500/30',
 };
 
 type EditableCustomField = CustomFieldDefinition & { _tempId: string };
@@ -477,11 +484,12 @@ const TabButton: React.FC<{ icon: React.ReactNode, label: string, isActive: bool
     </button>
 );
 
-type SettingsTab = 'geral' | 'fluxo' | 'integracoes' | 'log';
+type SettingsTab = 'geral' | 'freelancers' | 'fluxo' | 'integracoes' | 'log';
 
 export const SettingsPage: React.FC = () => {
     const { 
         users, addUser, updateUser, deleteUser, currentUser,
+        freelancers, addFreelancer, updateFreelancer, deleteFreelancer,
         catalogServices, addCatalogService, updateCatalogService, deleteCatalogService
     } = useAppContext();
     
@@ -489,6 +497,10 @@ export const SettingsPage: React.FC = () => {
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
     const [userToEdit, setUserToEdit] = useState<User | null>(null);
     const [userToDelete, setUserToDelete] = useState<User | null>(null);
+
+    const [isFreelancerModalOpen, setIsFreelancerModalOpen] = useState(false);
+    const [freelancerToEdit, setFreelancerToEdit] = useState<Freelancer | null>(null);
+    const [freelancerToDelete, setFreelancerToDelete] = useState<Freelancer | null>(null);
 
     const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
     const [serviceToEdit, setServiceToEdit] = useState<CatalogServiceItem | null>(null);
@@ -521,6 +533,34 @@ export const SettingsPage: React.FC = () => {
         }
     };
     
+    const handleOpenAddFreelancerModal = () => {
+        setFreelancerToEdit(null);
+        setIsFreelancerModalOpen(true);
+    };
+
+    const handleOpenEditFreelancerModal = (freelancer: Freelancer) => {
+        setFreelancerToEdit(freelancer);
+        setIsFreelancerModalOpen(true);
+    };
+
+    const handleSaveFreelancer = async (freelancer: Freelancer) => {
+        if (freelancerToEdit) {
+            await updateFreelancer(freelancer);
+        } else {
+            await addFreelancer(freelancer);
+        }
+        setIsFreelancerModalOpen(false);
+        setFreelancerToEdit(null);
+    };
+
+    const handleDeleteFreelancer = async () => {
+        if (freelancerToDelete) {
+            await deleteFreelancer(freelancerToDelete.id);
+            setFreelancerToDelete(null);
+        }
+    };
+
+
     const handleOpenAddServiceModal = () => {
         setServiceToEdit(null);
         setIsServiceModalOpen(true);
@@ -563,6 +603,7 @@ export const SettingsPage: React.FC = () => {
 
       <div className="flex-shrink-0 border-b border-granite-gray/20 my-4">
         <TabButton label="Geral" icon={<UserIcon size={16} />} isActive={activeTab === 'geral'} onClick={() => setActiveTab('geral')} />
+        <TabButton label="Freelancers" icon={<FreelancersIcon size={16} />} isActive={activeTab === 'freelancers'} onClick={() => setActiveTab('freelancers')} />
         <TabButton label="Fluxo de Trabalho" icon={<Kanban size={16} />} isActive={activeTab === 'fluxo'} onClick={() => setActiveTab('fluxo')} />
         <TabButton label="Integrações" icon={<Network size={16} />} isActive={activeTab === 'integracoes'} onClick={() => setActiveTab('integracoes')} />
         <TabButton label="Log de Atividade" icon={<History size={16} />} isActive={activeTab === 'log'} onClick={() => setActiveTab('log')} />
@@ -634,6 +675,42 @@ export const SettingsPage: React.FC = () => {
                 </div>
             </div>
         )}
+        {activeTab === 'freelancers' && (
+             <div className="bg-black/20 p-4 md:p-6 rounded-lg border border-granite-gray/20 overflow-hidden flex flex-col">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold text-gray-200">Gerenciamento de Freelancers</h2>
+                  <button onClick={handleOpenAddFreelancerModal} className="flex items-center px-3 py-1.5 bg-cadmium-yellow/80 rounded-lg text-xs font-bold text-coal-black hover:bg-cadmium-yellow"><PlusCircle size={16} className="mr-2" />Novo Freelancer</button>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <tbody>
+                            {freelancers.map(freelancer => (
+                                <tr key={freelancer.id} className="border-b border-granite-gray/20 hover:bg-granite-gray/10">
+                                    <td className="p-3 flex items-center">
+                                        <img src={freelancer.picture} alt={freelancer.name} className="h-10 w-10 rounded-full mr-4" />
+                                        <div>
+                                            <p className="font-semibold text-gray-100">{freelancer.name}</p>
+                                            <p className="text-sm text-granite-gray-light">{freelancer.email}</p>
+                                        </div>
+                                    </td>
+                                     <td className="p-3 text-sm">{freelancer.specialty}</td>
+                                    <td className="p-3 text-sm">{freelancer.rateValue.toLocaleString('pt-BR', {style:'currency', currency: 'BRL'})} / {freelancer.rateType}</td>
+                                    <td className="p-3">
+                                        <span className={`px-2 py-1 text-xs font-bold rounded-full border ${availabilityColors[freelancer.availability]}`}>
+                                            {freelancer.availability}
+                                        </span>
+                                    </td>
+                                    <td className="p-3 text-right">
+                                        <button onClick={() => handleOpenEditFreelancerModal(freelancer)} className="p-2 text-granite-gray-light hover:text-cadmium-yellow transition-colors mr-1"><Edit size={18} /></button>
+                                        <button onClick={() => setFreelancerToDelete(freelancer)} className="p-2 text-granite-gray-light hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        )}
         {activeTab === 'fluxo' && (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 <KanbanSettings />
@@ -661,13 +738,28 @@ export const SettingsPage: React.FC = () => {
             onSave={handleSaveUser}
         />
       )}
-
       {userToDelete && (
         <ConfirmDeleteModal
             title="Confirmar Exclusão de Usuário"
             message={`Tem certeza que deseja excluir o usuário ${userToDelete.name}? Esta ação não pode ser desfeita.`}
             onConfirm={handleDeleteUser}
             onCancel={() => setUserToDelete(null)}
+        />
+      )}
+
+      {isFreelancerModalOpen && (
+        <FreelancerFormModal
+            freelancer={freelancerToEdit}
+            onClose={() => setIsFreelancerModalOpen(false)}
+            onSave={handleSaveFreelancer}
+        />
+      )}
+      {freelancerToDelete && (
+        <ConfirmDeleteModal
+            title="Confirmar Exclusão de Freelancer"
+            message={`Tem certeza que deseja excluir o freelancer ${freelancerToDelete.name}?`}
+            onConfirm={handleDeleteFreelancer}
+            onCancel={() => setFreelancerToDelete(null)}
         />
       )}
       
@@ -678,7 +770,6 @@ export const SettingsPage: React.FC = () => {
             onSave={handleSaveService}
         />
       )}
-
       {serviceToDelete && (
         <ConfirmDeleteModal
             title="Confirmar Exclusão de Serviço"
